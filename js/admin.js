@@ -149,79 +149,68 @@ function renderTabEquipos() {
   const grupoA = adminData.equipos?.grupoA ?? [];
   const grupoB = adminData.equipos?.grupoB ?? [];
 
-  form.innerHTML = `
-    ${renderGrupoEquiposForm('A', grupoA)}
-    ${renderGrupoEquiposForm('B', grupoB)}`;
-
-  if (!form.dataset.listenerAttached) {
-    form.dataset.listenerAttached = 'true';
-    form.addEventListener('click', (e) => {
-      if (e.target.classList.contains('btn-equipo-remove')) {
-        e.target.closest('.admin-equipo-row').remove();
-      } else if (e.target.classList.contains('btn-equipo-add')) {
-        const grupo = e.target.dataset.grupo;
-        const block = e.target.closest('.admin-group-block');
-        const count = block.querySelectorAll('.equipo-input').length;
-        const row   = document.createElement('div');
-        row.className = 'admin-equipo-row';
-        row.innerHTML = `
-          <span class="admin-equipo-num">${count + 1}.</span>
-          <input
-            type="text"
-            class="admin-text-input equipo-input"
-            data-grupo="${grupo}"
-            data-idx="${count}"
-            value=""
-            placeholder="Nombre equipo nuevo"
-            maxlength="40"
-            aria-label="Nuevo equipo del grupo ${grupo}"
-          >
-          <button
-            type="button"
-            class="btn-equipo-remove"
-            aria-label="Eliminar equipo"
-            title="Eliminar equipo"
-          >×</button>`;
-        e.target.before(row);
-        row.querySelector('input').focus();
-      }
-    });
-  }
+  form.innerHTML = '';
+  form.appendChild(crearBloqueGrupo('A', grupoA));
+  form.appendChild(crearBloqueGrupo('B', grupoB));
 }
 
-function renderGrupoEquiposForm(grupo, nombres) {
-  const inputs = nombres.map((nombre, i) => `
-    <div class="admin-equipo-row">
-      <span class="admin-equipo-num">${i + 1}.</span>
-      <input
-        type="text"
-        class="admin-text-input equipo-input"
-        data-grupo="${grupo}"
-        data-idx="${i}"
-        value="${escHtml(nombre)}"
-        placeholder="Nombre equipo ${i + 1}"
-        maxlength="40"
-        aria-label="Equipo ${i + 1} del grupo ${grupo}"
-      >
-      <button
-        type="button"
-        class="btn-equipo-remove"
-        aria-label="Eliminar equipo ${i + 1} del grupo ${grupo}"
-        title="Eliminar equipo"
-      >×</button>
-    </div>`).join('');
+function crearBloqueGrupo(grupo, nombres) {
+  const block = document.createElement('div');
+  block.className = 'admin-group-block';
 
-  return `
-    <div class="admin-group-block">
-      <h3 class="admin-group-title">Grupo ${grupo}</h3>
-      ${inputs}
-      <button
-        type="button"
-        class="btn-equipo-add"
-        data-grupo="${grupo}"
-        aria-label="Añadir equipo al grupo ${grupo}"
-      >+ Añadir equipo</button>
-    </div>`;
+  const titulo = document.createElement('h3');
+  titulo.className = 'admin-group-title';
+  titulo.textContent = `Grupo ${grupo}`;
+  block.appendChild(titulo);
+
+  nombres.forEach((nombre, i) => block.appendChild(crearFilaEquipo(grupo, i, nombre)));
+
+  const btnAdd = document.createElement('button');
+  btnAdd.type = 'button';
+  btnAdd.className = 'btn-equipo-add';
+  btnAdd.textContent = '+ Añadir equipo';
+  btnAdd.addEventListener('click', () => {
+    const count = block.querySelectorAll('.equipo-input').length;
+    const fila  = crearFilaEquipo(grupo, count, '');
+    block.insertBefore(fila, btnAdd);
+    fila.querySelector('input').focus();
+  });
+  block.appendChild(btnAdd);
+
+  return block;
+}
+
+function crearFilaEquipo(grupo, idx, nombre) {
+  const row = document.createElement('div');
+  row.className = 'admin-equipo-row';
+
+  const num = document.createElement('span');
+  num.className = 'admin-equipo-num';
+  num.textContent = `${idx + 1}.`;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'admin-text-input equipo-input';
+  input.dataset.grupo = grupo;
+  input.dataset.idx = String(idx);
+  input.value = nombre;
+  input.placeholder = `Nombre equipo ${idx + 1}`;
+  input.maxLength = 40;
+  input.setAttribute('aria-label', `Equipo ${idx + 1} del grupo ${grupo}`);
+
+  const btnRemove = document.createElement('button');
+  btnRemove.type = 'button';
+  btnRemove.className = 'btn-equipo-remove';
+  btnRemove.textContent = '×';
+  btnRemove.title = 'Eliminar equipo';
+  btnRemove.setAttribute('aria-label', `Eliminar equipo ${idx + 1} del grupo ${grupo}`);
+  btnRemove.addEventListener('click', () => row.remove());
+
+  row.appendChild(num);
+  row.appendChild(input);
+  row.appendChild(btnRemove);
+
+  return row;
 }
 
 async function guardarEquipos() {
