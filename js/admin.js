@@ -153,6 +153,41 @@ function renderTabEquipos() {
       ${renderGrupoEquiposForm('A', grupoA)}
       ${renderGrupoEquiposForm('B', grupoB)}
     </div>`;
+
+  if (!form.dataset.listenerAttached) {
+    form.dataset.listenerAttached = 'true';
+    form.addEventListener('click', (e) => {
+      if (e.target.classList.contains('btn-equipo-remove')) {
+        e.target.closest('.admin-equipo-row').remove();
+      } else if (e.target.classList.contains('btn-equipo-add')) {
+        const grupo = e.target.dataset.grupo;
+        const block = e.target.closest('.admin-group-block');
+        const count = block.querySelectorAll('.equipo-input').length;
+        const row   = document.createElement('div');
+        row.className = 'admin-equipo-row';
+        row.innerHTML = `
+          <span class="admin-equipo-num">${count + 1}.</span>
+          <input
+            type="text"
+            class="admin-text-input equipo-input"
+            data-grupo="${grupo}"
+            data-idx="${count}"
+            value=""
+            placeholder="Nombre equipo nuevo"
+            maxlength="40"
+            aria-label="Nuevo equipo del grupo ${grupo}"
+          >
+          <button
+            type="button"
+            class="btn-equipo-remove"
+            aria-label="Eliminar equipo"
+            title="Eliminar equipo"
+          >×</button>`;
+        e.target.before(row);
+        row.querySelector('input').focus();
+      }
+    });
+  }
 }
 
 function renderGrupoEquiposForm(grupo, nombres) {
@@ -169,30 +204,39 @@ function renderGrupoEquiposForm(grupo, nombres) {
         maxlength="40"
         aria-label="Equipo ${i + 1} del grupo ${grupo}"
       >
+      <button
+        type="button"
+        class="btn-equipo-remove"
+        aria-label="Eliminar equipo ${i + 1} del grupo ${grupo}"
+        title="Eliminar equipo"
+      >×</button>
     </div>`).join('');
 
   return `
     <div class="admin-group-block">
       <h3 class="admin-group-title">Grupo ${grupo}</h3>
       ${inputs}
+      <button
+        type="button"
+        class="btn-equipo-add"
+        data-grupo="${grupo}"
+        aria-label="Añadir equipo al grupo ${grupo}"
+      >+ Añadir equipo</button>
     </div>`;
 }
 
 async function guardarEquipos() {
   if (!adminData) return;
 
-  // Leer todos los inputs del formulario
-  const inputs = document.querySelectorAll('#admin-equipos-form .equipo-input');
-  const nuevoGrupoA = [...adminData.equipos.grupoA];
-  const nuevoGrupoB = [...adminData.equipos.grupoB];
+  const form = document.getElementById('admin-equipos-form');
+  const nuevoGrupoA = [];
+  const nuevoGrupoB = [];
 
-  inputs.forEach(input => {
-    const grupo = input.dataset.grupo;
-    const idx   = parseInt(input.dataset.idx, 10);
-    const valor = input.value.trim() || `Equipo ${grupo === 'A' ? idx + 1 : idx + 6}`;
-
-    if (grupo === 'A') nuevoGrupoA[idx] = valor;
-    else               nuevoGrupoB[idx] = valor;
+  form.querySelectorAll('.equipo-input[data-grupo="A"]').forEach((input, i) => {
+    nuevoGrupoA.push(input.value.trim() || `Equipo ${i + 1}`);
+  });
+  form.querySelectorAll('.equipo-input[data-grupo="B"]').forEach((input, i) => {
+    nuevoGrupoB.push(input.value.trim() || `Equipo ${i + 6}`);
   });
 
   try {

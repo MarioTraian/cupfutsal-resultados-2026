@@ -1079,6 +1079,44 @@ input, select, textarea {
   font-weight: 600;
 }
 
+.btn-equipo-remove {
+  background: none;
+  border: 1px solid var(--border-faint);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.3rem 0.55rem;
+  flex-shrink: 0;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+.btn-equipo-remove:hover {
+  background: rgba(220, 38, 38, 0.15);
+  border-color: #dc2626;
+  color: #dc2626;
+}
+
+.btn-equipo-add {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: none;
+  border: 1px dashed var(--border-faint);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0.45rem 0.75rem;
+  margin-top: 0.5rem;
+  width: 100%;
+  transition: border-color var(--transition), color var(--transition);
+}
+.btn-equipo-add:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
 .admin-text-input {
   flex: 1;
   background: rgba(255,255,255,0.06);
