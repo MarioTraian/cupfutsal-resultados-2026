@@ -146,13 +146,12 @@ function renderTabEquipos() {
   const form = document.getElementById('admin-equipos-form');
   if (!form || !adminData) return;
 
-  const { grupoA, grupoB } = adminData.equipos ?? { grupoA: [], grupoB: [] };
+  const grupoA = adminData.equipos?.grupoA ?? [];
+  const grupoB = adminData.equipos?.grupoB ?? [];
 
   form.innerHTML = `
-    <div class="admin-groups-grid">
-      ${renderGrupoEquiposForm('A', grupoA)}
-      ${renderGrupoEquiposForm('B', grupoB)}
-    </div>`;
+    ${renderGrupoEquiposForm('A', grupoA)}
+    ${renderGrupoEquiposForm('B', grupoB)}`;
 
   if (!form.dataset.listenerAttached) {
     form.dataset.listenerAttached = 'true';
