@@ -161,10 +161,15 @@ function getGanador(equipoLocal, equipoVisitante, golLocal, golVisitante) {
  */
 export function generarDatosIniciales(categoriaId) {
   return {
-    equipos: {
-      grupoA: ['Equipo 1', 'Equipo 2', 'Equipo 3', 'Equipo 4', 'Equipo 5'],
-      grupoB: ['Equipo 6', 'Equipo 7', 'Equipo 8', 'Equipo 9', 'Equipo 10']
-    },
+    equipos: categoriaId === 'juvenilsenior'
+      ? {
+          grupoA: ['Equipo 1', 'Equipo 2', 'Equipo 3', 'Equipo 4', 'Equipo 5', 'Equipo 11'],
+          grupoB: ['Equipo 6', 'Equipo 7', 'Equipo 8', 'Equipo 9', 'Equipo 10', 'Equipo 12']
+        }
+      : {
+          grupoA: ['Equipo 1', 'Equipo 2', 'Equipo 3', 'Equipo 4', 'Equipo 5'],
+          grupoB: ['Equipo 6', 'Equipo 7', 'Equipo 8', 'Equipo 9', 'Equipo 10']
+        },
     partidos: [
       ...generarRoundRobin('A'),
       ...generarRoundRobin('B')
