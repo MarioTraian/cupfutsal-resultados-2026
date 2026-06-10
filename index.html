@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- ═══════════════════════════════════════════════
+       SEO BÁSICO
+  ═══════════════════════════════════════════════ -->
+  <title>CupFutsal Caspe 2026 · Resultados en directo</title>
+  <meta name="description" content="Sigue en directo los resultados, clasificaciones y partidos del torneo de fútbol sala CupFutsal Caspe 2026.">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#0a1628">
+
+  <!-- ═══════════════════════════════════════════════
+       PWA — Manifest e iconos instalables
+  ═══════════════════════════════════════════════ -->
+  <link rel="manifest" href="manifest.json">
+  <!-- iOS Safari (no usa manifest nativo) -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="CupFutsal">
+  <link rel="apple-touch-icon" href="assets/icons/icon-180.png">
+
+  <!-- ═══════════════════════════════════════════════
+       OPEN GRAPH (WhatsApp, Instagram, Twitter)
+  ═══════════════════════════════════════════════ -->
+  <meta property="og:title" content="CupFutsal Caspe 2026 · Resultados en directo">
+  <meta property="og:description" content="Sigue en directo los resultados, clasificaciones y partidos del torneo de fútbol sala CupFutsal Caspe 2026.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://cupfutsal-caspe-2026.netlify.app">
+  <meta property="og:image" content="/assets/og-image.jpg">
+  <meta property="og:locale" content="es_ES">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="CupFutsal Caspe 2026 · Resultados en directo">
+  <meta name="twitter:description" content="Sigue en directo los resultados, clasificaciones y partidos del torneo de fútbol sala CupFutsal Caspe 2026.">
+
+  <!-- ═══════════════════════════════════════════════
+       FAVICON SVG INLINE (letras CF sobre fondo azul oscuro)
+  ═══════════════════════════════════════════════ -->
+  <link rel="icon" type="image/png" sizes="32x32"  href="assets/favicon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="assets/icons/icon-512.png">
+
+  <!-- ═══════════════════════════════════════════════
+       GOOGLE FONTS (preconnect para rendimiento)
+  ═══════════════════════════════════════════════ -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- ═══════════════════════════════════════════════
+       ESTILOS
+  ═══════════════════════════════════════════════ -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════
+       HEADER — cabecera compacta con logo de marca de agua
+  ═══════════════════════════════════════════════ -->
+  <header class="site-header">
+    <!-- Logo como marca de agua de fondo — reemplaza con la ruta real cuando tengas el logo -->
+    <div class="header-logo-bg" aria-hidden="true"></div>
+    <!-- Luces de estadio (efecto visual) -->
+    <div class="header-glow" aria-hidden="true"></div>
+    <div class="header-content">
+      <h1 class="header-title">CupFutsal Caspe 2026</h1>
+      <p class="header-subtitle">24 y 25 de julio &middot; Caspe, Aragón</p>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════
+       NAV DE CATEGORÍAS — pestañas deslizables
+  ═══════════════════════════════════════════════ -->
+  <nav class="cat-nav" role="navigation" aria-label="Categorías del torneo">
+    <div class="cat-tabs" role="tablist">
+      <button class="cat-tab active" role="tab" data-cat="benjamin" aria-selected="true">Benjamín</button>
+      <button class="cat-tab" role="tab" data-cat="alevin" aria-selected="false">Alevín</button>
+      <button class="cat-tab" role="tab" data-cat="infantil" aria-selected="false">Infantil</button>
+      <button class="cat-tab" role="tab" data-cat="cadete" aria-selected="false">Cadete</button>
+      <button class="cat-tab" role="tab" data-cat="juvenilsenior" aria-selected="false">Juvenil/Sénior</button>
+    </div>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════════
+       CONTENIDO PRINCIPAL — se renderiza dinámicamente con JS
+  ═══════════════════════════════════════════════ -->
+  <main id="main-content" role="main">
+
+    <!-- Estado de carga inicial -->
+    <div id="loading-state" class="loading-state" aria-live="polite">
+      <div class="spinner"></div>
+      <p>Cargando datos del torneo&hellip;</p>
+    </div>
+
+    <!-- Estado de error (Firebase no configurado / sin conexión) -->
+    <div id="error-state" class="error-state hidden" aria-live="assertive">
+      <div class="error-icon">⚠️</div>
+      <h2>Sin conexión</h2>
+      <p id="error-message">Verifica la configuración de Firebase.</p>
+    </div>
+
+    <!-- ── SECCIÓN: RESULTADOS ── -->
+    <section id="seccion-resultados" class="content-section hidden" aria-label="Resultados">
+      <h2 class="section-title">
+        <span class="section-title-icon">⚽</span>
+        Resultados
+      </h2>
+      <div id="resultados-container"></div>
+    </section>
+
+    <!-- ── SECCIÓN: CLASIFICACIÓN ── -->
+    <section id="seccion-clasificacion" class="content-section hidden" aria-label="Clasificación">
+      <h2 class="section-title">
+        <span class="section-title-icon">🏅</span>
+        Clasificación
+      </h2>
+      <div id="clasificacion-container" class="clasificacion-grupos"></div>
+    </section>
+
+    <!-- ── SECCIÓN: PRÓXIMOS PARTIDOS ── -->
+    <section id="seccion-proximos" class="content-section hidden" aria-label="Próximos partidos">
+      <h2 class="section-title">
+        <span class="section-title-icon">🕐</span>
+        Próximos Partidos
+      </h2>
+      <div id="proximos-container"></div>
+    </section>
+
+    <!-- ── SECCIÓN: ELIMINATORIA ── -->
+    <section id="seccion-eliminatoria" class="content-section hidden" aria-label="Eliminatoria">
+      <h2 class="section-title">
+        <span class="section-title-icon">🏆</span>
+        Eliminatoria
+      </h2>
+      <div id="eliminatoria-container"></div>
+    </section>
+
+  </main>
+
+  <!-- ═══════════════════════════════════════════════
+       FOOTER — con botón admin discreto
+  ═══════════════════════════════════════════════ -->
+  <footer class="site-footer">
+    <p class="footer-text">CupFutsal Caspe 2026 &bull; Organizado con ❤️ en Caspe, Aragón</p>
+    <!-- Botón admin: pequeño y discreto en la esquina -->
+    <button
+      id="admin-btn"
+      class="admin-trigger-btn"
+      aria-label="Acceso al panel de administración"
+      title="Panel de administración"
+    >🔒</button>
+  </footer>
+
+  <!-- ═══════════════════════════════════════════════
+       MODAL ADMINISTRACIÓN — overlay de pantalla completa
+  ═══════════════════════════════════════════════ -->
+  <div id="admin-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Panel de administración">
+
+    <!-- ── PANTALLA DE LOGIN ── -->
+    <div id="admin-login-screen" class="admin-login-screen">
+      <div class="admin-login-card">
+        <div class="admin-login-logo">🔒</div>
+        <h2 class="admin-login-title">Panel de Administración</h2>
+        <p class="admin-login-subtitle">CupFutsal Caspe 2026</p>
+        <div class="admin-input-group">
+          <label for="admin-password" class="sr-only">Contraseña</label>
+          <input
+            type="password"
+            id="admin-password"
+            class="admin-password-input"
+            placeholder="Contraseña de acceso"
+            autocomplete="current-password"
+            aria-describedby="admin-error-msg"
+          >
+          <button id="admin-login-btn" class="btn btn-gold">Acceder</button>
+        </div>
+        <p id="admin-error-msg" class="admin-error hidden" role="alert">Contraseña incorrecta. Inténtalo de nuevo.</p>
+        <button id="admin-close-login" class="btn btn-ghost admin-close-btn">Cancelar</button>
+      </div>
+    </div>
+
+    <!-- ── PANEL DE ADMIN (visible tras autenticación) ── -->
+    <div id="admin-panel" class="admin-panel hidden">
+
+      <!-- Cabecera del panel -->
+      <div class="admin-header">
+        <h2 class="admin-header-title">⚙️ Admin &mdash; CupFutsal 2026</h2>
+        <button id="admin-close-panel" class="btn btn-ghost" aria-label="Cerrar panel">✕ Cerrar</button>
+      </div>
+
+      <!-- Selector de categoría global para el admin -->
+      <div class="admin-cat-selector">
+        <label for="admin-cat-select" class="admin-label">Categoría activa:</label>
+        <select id="admin-cat-select" class="admin-select">
+          <option value="benjamin">Benjamín</option>
+          <option value="alevin">Alevín</option>
+          <option value="infantil">Infantil</option>
+          <option value="cadete">Cadete</option>
+          <option value="juvenilsenior">Juvenil/Sénior</option>
+        </select>
+      </div>
+
+      <!-- Pestañas internas del admin -->
+      <div class="admin-tabs-nav" role="tablist">
+        <button class="admin-tab active" role="tab" data-admin-tab="equipos" aria-selected="true">
+          👥 Equipos
+        </button>
+        <button class="admin-tab" role="tab" data-admin-tab="partidos" aria-selected="false">
+          ⚽ Partidos
+        </button>
+        <button class="admin-tab" role="tab" data-admin-tab="eliminatoria" aria-selected="false">
+          🏆 Eliminatoria
+        </button>
+      </div>
+
+      <!-- Contenido de las pestañas del admin -->
+      <div class="admin-content">
+
+        <!-- Pestaña: EQUIPOS -->
+        <div id="admin-tab-equipos" class="admin-tab-content">
+          <div class="admin-save-bar">
+            <p class="admin-hint">Edita los nombres de los equipos. Los cambios se guardan en Firebase al pulsar el botón.</p>
+            <button id="admin-save-equipos" class="btn btn-gold">💾 Guardar equipos</button>
+          </div>
+          <div class="admin-groups-grid" id="admin-equipos-form">
+            <!-- JS renderiza aquí los grupos A y B con inputs editables -->
+            <div class="admin-loading-msg">Cargando equipos&hellip;</div>
+          </div>
+        </div>
+
+        <!-- Pestaña: PARTIDOS DE GRUPO -->
+        <div id="admin-tab-partidos" class="admin-tab-content hidden">
+          <div class="admin-save-bar">
+            <p class="admin-hint">Introduce los resultados y horarios de los partidos de grupo.</p>
+          </div>
+          <div id="admin-partidos-form">
+            <!-- JS renderiza aquí los partidos de grupo A y B -->
+            <div class="admin-loading-msg">Cargando partidos&hellip;</div>
+          </div>
+        </div>
+
+        <!-- Pestaña: ELIMINATORIA -->
+        <div id="admin-tab-eliminatoria" class="admin-tab-content hidden">
+          <div class="admin-save-bar">
+            <p class="admin-hint">Los cruces de semifinales se calculan automáticamente al terminar los grupos. Puedes forzar los nombres de equipos manualmente si es necesario.</p>
+          </div>
+          <div id="admin-eliminatoria-form">
+            <!-- JS renderiza aquí las 3 rondas: SF1, SF2, Final -->
+            <div class="admin-loading-msg">Cargando eliminatoria&hellip;</div>
+          </div>
+        </div>
+
+      </div><!-- /admin-content -->
+    </div><!-- /admin-panel -->
+
+  </div><!-- /admin-overlay -->
+
+  <!-- ═══════════════════════════════════════════════
+       SCRIPTS — módulos ES (Firebase v9+)
+  ═══════════════════════════════════════════════ -->
+  <!-- El script principal importa firebase-config, app y admin como módulos -->
+  <script type="module" src="js/app.js"></script>
+
+  <!-- ═══════════════════════════════════════════════
+       PWA — Registro del Service Worker
+  ═══════════════════════════════════════════════ -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js');
+      });
+    }
+  </script>
+
+</body>
+</html>

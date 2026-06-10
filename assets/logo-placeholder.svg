@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Placeholder logo CupFutsal Caspe 2026 -->
+  <!-- Reemplaza assets/logo.png con el logo real del torneo -->
+  <circle cx="100" cy="100" r="95" fill="none" stroke="#f5b942" stroke-width="4"/>
+  <text x="100" y="85" font-family="Arial Black, sans-serif" font-size="36" font-weight="900" fill="#f5b942" text-anchor="middle">CUP</text>
+  <text x="100" y="125" font-family="Arial Black, sans-serif" font-size="24" font-weight="900" fill="#ffffff" text-anchor="middle">FUTSAL</text>
+  <text x="100" y="160" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#f5b942" text-anchor="middle">CASPE 2026</text>
+</svg>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="72" fill="#0a1628"/>
+  <rect x="18" y="18" width="476" height="476" rx="60" fill="none" stroke="#f5b942" stroke-width="22"/>
+  <text x="256" y="295" font-family="Arial Black,Arial,sans-serif" font-size="196" font-weight="900" fill="#f5b942" text-anchor="middle">CF</text>
+  <text x="256" y="380" font-family="Arial,sans-serif" font-size="52" font-weight="700" fill="#f5b942" text-anchor="middle" opacity="0.75" letter-spacing="6">CASPE 2026</text>
+</svg>

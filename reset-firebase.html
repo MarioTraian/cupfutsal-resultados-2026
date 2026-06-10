@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Reset Firebase — CupFutsal 2026</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 20px; background: #0a1628; color: #fff; }
+    h1 { color: #f0c040; }
+    .btn { background: #f0c040; color: #0a1628; border: none; padding: 12px 24px; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 6px; margin-top: 20px; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    #log { margin-top: 20px; background: #111; padding: 16px; border-radius: 6px; font-family: monospace; font-size: 13px; line-height: 1.8; min-height: 100px; white-space: pre-wrap; }
+    .ok  { color: #4caf50; }
+    .err { color: #f44336; }
+    .info{ color: #90caf9; }
+    .warn{ background: #f0c040; color: #0a1628; padding: 12px; border-radius: 6px; font-weight: bold; margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+  <h1>Reset Firebase — CupFutsal 2026</h1>
+  <div class="warn">⚠️ ATENCIÓN: Esto borrará TODOS los datos del torneo en Firebase y los dejará en estado inicial. No se puede deshacer.</div>
+  <p>Categorías que se crearán de cero: <strong>Benjamín, Alevín, Infantil, Cadete, Juvenil/Sénior</strong></p>
+  <p>Cada categoría tendrá Equipo 1–10, sin resultados ni partidos jugados.</p>
+  <button class="btn" id="btnReset" onclick="resetear()">Ejecutar Reset</button>
+  <div id="log"></div>
+
+  <script type="module">
+    import { initializeApp }  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getFirestore, doc, setDoc, deleteDoc, getDoc }
+      from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey:            "AIzaSyCmeWZSoFFYN9KA0UfbfNiVaXbLqKs0Kz8",
+      authDomain:        "cupfutsal-caspe-2026.firebaseapp.com",
+      projectId:         "cupfutsal-caspe-2026",
+      storageBucket:     "cupfutsal-caspe-2026.firebasestorage.app",
+      messagingSenderId: "807628615532",
+      appId:             "1:807628615532:web:a0c28cb3d87a560b234d49"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+
+    const CATEGORIAS_ANTIGUAS = ['prebenjamin', 'benjamin', 'alevin', 'infantil', 'cadete', 'juvenil', 'senior', 'juvenilsenior'];
+    const CATEGORIAS_NUEVAS   = ['benjamin', 'alevin', 'infantil', 'cadete', 'juvenilsenior'];
+
+    function generarRoundRobin(grupo) {
+      const partidos = [];
+      for (let i = 0; i < 5; i++) {
+        for (let j = i + 1; j < 5; j++) {
+          partidos.push({
+            id: `${grupo}_${i}_${j}`, grupo,
+            localIdx: i, visitanteIdx: j,
+            golLocal: null, golVisitante: null,
+            jugado: false, dia: null, hora: null
+          });
+        }
+      }
+      return partidos;
+    }
+
+    function datosIniciales() {
+      return {
+        equipos: {
+          grupoA: ['Equipo 1','Equipo 2','Equipo 3','Equipo 4','Equipo 5'],
+          grupoB: ['Equipo 6','Equipo 7','Equipo 8','Equipo 9','Equipo 10']
+        },
+        partidos: [...generarRoundRobin('A'), ...generarRoundRobin('B')],
+        eliminatoria: {
+          sf1:   { equipoLocal: null, equipoVisitante: null, golLocal: null, golVisitante: null, jugado: false, dia: null, hora: null },
+          sf2:   { equipoLocal: null, equipoVisitante: null, golLocal: null, golVisitante: null, jugado: false, dia: null, hora: null },
+          final: { equipoLocal: null, equipoVisitante: null, golLocal: null, golVisitante: null, jugado: false, dia: null, hora: null }
+        }
+      };
+    }
+
+    function log(msg, tipo = '') {
+      const el = document.getElementById('log');
+      el.innerHTML += `<span class="${tipo}">${msg}</span>\n`;
+    }
+
+    window.resetear = async function() {
+      const btn = document.getElementById('btnReset');
+      btn.disabled = true;
+      document.getElementById('log').innerHTML = '';
+
+      log('Iniciando reset…', 'info');
+
+      // 1. Borrar categorías antiguas
+      log('\n── Borrando datos existentes ──', 'info');
+      for (const cat of CATEGORIAS_ANTIGUAS) {
+        try {
+          const ref  = doc(db, 'torneos', 'caspe2026', 'categorias', cat);
+          const snap = await getDoc(ref);
+          if (snap.exists()) {
+            await deleteDoc(ref);
+            log(`  ✓ Borrado: ${cat}`, 'ok');
+          } else {
+            log(`  – No existía: ${cat}`);
+          }
+        } catch (e) {
+          log(`  ✗ Error borrando ${cat}: ${e.message}`, 'err');
+        }
+      }
+
+      // 2. Crear categorías nuevas con datos iniciales
+      log('\n── Creando categorías nuevas ──', 'info');
+      for (const cat of CATEGORIAS_NUEVAS) {
+        try {
+          const ref = doc(db, 'torneos', 'caspe2026', 'categorias', cat);
+          await setDoc(ref, datosIniciales());
+          log(`  ✓ Creado: ${cat}`, 'ok');
+        } catch (e) {
+          log(`  ✗ Error creando ${cat}: ${e.message}`, 'err');
+        }
+      }
+
+      log('\n✅ Reset completado. Puedes cerrar esta página.', 'ok');
+      btn.textContent = 'Completado';
+    };
+  </script>
+</body>
+</html>
