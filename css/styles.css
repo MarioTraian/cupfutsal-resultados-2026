@@ -1011,23 +1011,34 @@ input, select, textarea {
   background: var(--bg-deep);
   padding: 0.75rem var(--space-md);
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
 .admin-header-title {
   font-family: var(--font-display);
-  font-size: 1.2rem;
+  font-size: 1rem;
   letter-spacing: 0.06em;
   color: var(--gold);
+  white-space: nowrap;
 }
 
 .admin-header-actions {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.admin-header-actions .btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+  min-height: 38px;
+  white-space: nowrap;
 }
 
 .admin-cat-selector {
