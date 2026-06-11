@@ -1,8 +1,7 @@
-const CACHE = 'cupfutsal-2026-v4';
+const CACHE = 'cupfutsal-2026-v5';
 
-const STATIC = [
-  '/',
-  '/index.html',
+// Solo se cachean assets estáticos — NUNCA index.html ni sw.js
+const PRECACHE = [
   '/css/styles.css',
   '/js/app.js',
   '/js/admin.js',
@@ -14,7 +13,7 @@ const STATIC = [
 
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE).then(cache => cache.addAll(STATIC))
+    caches.open(CACHE).then(cache => cache.addAll(PRECACHE))
   );
   self.skipWaiting();
 });
@@ -32,26 +31,33 @@ self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Solo interceptar peticiones GET del mismo origen
-  // (dejamos pasar Firebase, Google Fonts, etc.)
   if (request.method !== 'GET') return;
   if (url.origin !== self.location.origin) return;
 
+  // HTML → siempre red primero, caché solo como fallback sin conexión
+  if (request.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          const clone = response.clone();
+          caches.open(CACHE).then(c => c.put(request, clone));
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // CSS / JS / assets → caché primero (rápido), red si no está
   event.respondWith(
     caches.match(request).then(cached => {
       if (cached) return cached;
-
       return fetch(request).then(response => {
         if (!response.ok) return response;
         const clone = response.clone();
-        caches.open(CACHE).then(cache => cache.put(request, clone));
+        caches.open(CACHE).then(c => c.put(request, clone));
         return response;
       });
-    }).catch(() => {
-      // Sin caché ni red: devolver index.html para rutas HTML
-      if (request.headers.get('accept')?.includes('text/html')) {
-        return caches.match('/index.html');
-      }
     })
   );
 });
