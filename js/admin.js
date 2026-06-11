@@ -20,7 +20,7 @@
 ─────────────────────────────────────────────── */
 import { db, isFirebaseConfigured } from './firebase-config.js';
 import {
-  doc, getDoc, setDoc, updateDoc, onSnapshot
+  doc, getDoc, setDoc, updateDoc, onSnapshot, deleteField
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 import {
@@ -161,6 +161,21 @@ async function guardarLogo(grupo, idx, logoUrl) {
   await updateDoc(ref, { [`logos.${grupo}_${idx}`]: logoUrl });
 }
 
+async function eliminarLogo(grupo, idx, nombre) {
+  const confirmar = confirm(`¿Eliminar el logo de "${nombre}"?\n\nEl logo dejará de mostrarse en la web.`);
+  if (!confirmar) return;
+
+  if (!isFirebaseConfigured) return;
+  try {
+    const ref = doc(db, 'torneos', 'caspe2026', 'categorias', adminCatActual);
+    await updateDoc(ref, { [`logos.${grupo}_${idx}`]: deleteField() });
+    mostrarToast('🗑️ Logo eliminado', 'success');
+  } catch (err) {
+    console.error(err);
+    mostrarToast('❌ Error al eliminar el logo', 'error');
+  }
+}
+
 /* ───────────────────────────────────────────────
    6. PESTAÑA: EQUIPOS
 ─────────────────────────────────────────────── */
@@ -201,35 +216,42 @@ function crearFilaEquipo(grupo, idx, nombre) {
   const row = document.createElement('div');
   row.className = 'admin-equipo-row';
 
-  // ── Botón logo ──
-  const logoUrl = adminData?.logos?.[`${grupo}_${idx}`] || null;
+  // ── Contenedor logo (botón subir + botón eliminar) ──
+  let logoUrl = adminData?.logos?.[`${grupo}_${idx}`] || null;
 
   const fileInput = document.createElement('input');
-  fileInput.type  = 'file';
+  fileInput.type   = 'file';
   fileInput.accept = 'image/*';
   fileInput.style.display = 'none';
 
   const logoBtn = document.createElement('button');
-  logoBtn.type  = 'button';
+  logoBtn.type      = 'button';
   logoBtn.className = 'btn-logo-upload';
-  logoBtn.title = 'Subir logo del equipo';
-  logoBtn.setAttribute('aria-label', `Subir logo de ${nombre}`);
 
-  const actualizarLogoBtn = (url) => {
+  const btnDeleteLogo = document.createElement('button');
+  btnDeleteLogo.type      = 'button';
+  btnDeleteLogo.className = 'btn-logo-delete';
+  btnDeleteLogo.title     = 'Eliminar logo';
+  btnDeleteLogo.setAttribute('aria-label', `Eliminar logo de ${nombre}`);
+  btnDeleteLogo.textContent = '🗑';
+
+  const actualizarLogoArea = (url) => {
     logoBtn.innerHTML = '';
     if (url) {
       const img = document.createElement('img');
-      img.src = url;
+      img.src       = url;
       img.className = 'logo-preview-admin';
-      img.alt = 'Logo del equipo';
+      img.alt       = 'Logo del equipo';
       logoBtn.title = 'Cambiar logo';
       logoBtn.appendChild(img);
+      btnDeleteLogo.style.display = '';
     } else {
       logoBtn.textContent = '🖼';
-      logoBtn.title = 'Subir logo del equipo (clic para elegir imagen)';
+      logoBtn.title       = 'Subir logo (clic para elegir imagen)';
+      btnDeleteLogo.style.display = 'none';
     }
   };
-  actualizarLogoBtn(logoUrl);
+  actualizarLogoArea(logoUrl);
 
   logoBtn.addEventListener('click', () => fileInput.click());
 
@@ -241,36 +263,43 @@ function crearFilaEquipo(grupo, idx, nombre) {
     try {
       const url = await subirLogoCloudinary(file);
       await guardarLogo(grupo, idx, url);
-      actualizarLogoBtn(url);
+      logoUrl = url;
+      actualizarLogoArea(url);
       mostrarToast('✅ Logo actualizado', 'success');
     } catch (err) {
       console.error(err);
       mostrarToast('❌ Error al subir el logo', 'error');
-      actualizarLogoBtn(logoUrl);
+      actualizarLogoArea(logoUrl);
     }
     logoBtn.disabled = false;
     fileInput.value  = '';
   });
 
+  btnDeleteLogo.addEventListener('click', async () => {
+    await eliminarLogo(grupo, idx, nombre);
+    logoUrl = null;
+    actualizarLogoArea(null);
+  });
+
   // ── Número ──
   const num = document.createElement('span');
-  num.className = 'admin-equipo-num';
+  num.className   = 'admin-equipo-num';
   num.textContent = `${idx + 1}.`;
 
   // ── Input nombre ──
   const input = document.createElement('input');
-  input.type = 'text';
+  input.type      = 'text';
   input.className = 'admin-text-input equipo-input';
   input.dataset.grupo = grupo;
-  input.dataset.idx = String(idx);
-  input.value = nombre;
+  input.dataset.idx   = String(idx);
+  input.value       = nombre;
   input.placeholder = `Nombre equipo ${idx + 1}`;
-  input.maxLength = 40;
+  input.maxLength   = 40;
   input.setAttribute('aria-label', `Equipo ${idx + 1} del grupo ${grupo}`);
 
-  // ── Botón eliminar ──
+  // ── Botón eliminar equipo ──
   const btnRemove = document.createElement('button');
-  btnRemove.type = 'button';
+  btnRemove.type      = 'button';
   btnRemove.className = 'btn-equipo-remove';
   btnRemove.textContent = '×';
   btnRemove.title = 'Eliminar equipo';
@@ -278,6 +307,7 @@ function crearFilaEquipo(grupo, idx, nombre) {
   btnRemove.addEventListener('click', () => eliminarEquipo(grupo, idx, nombre));
 
   row.appendChild(logoBtn);
+  row.appendChild(btnDeleteLogo);
   row.appendChild(fileInput);
   row.appendChild(num);
   row.appendChild(input);
