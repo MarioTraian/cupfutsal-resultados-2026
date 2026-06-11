@@ -92,8 +92,9 @@ export function getLogoEquipo(logos, grupo, idx) {
 
 function logoHtml(url, nombre, lado) {
   const inicial = escHtml((nombre || '?')[0].toUpperCase());
+  const fallback = `this.outerHTML='<span class=\\'eq-logo eq-logo-inicial\\' aria-hidden=\\'true\\'>${inicial}</span>'`;
   const img = url
-    ? `<img class="eq-logo" src="${escHtml(url)}" alt="" loading="lazy" aria-hidden="true">`
+    ? `<img class="eq-logo" src="${escHtml(url)}" alt="" loading="lazy" aria-hidden="true" onerror="${fallback}">`
     : `<span class="eq-logo eq-logo-inicial" aria-hidden="true">${inicial}</span>`;
   return lado === 'local'
     ? `<span class="eq-logo-nombre">${escHtml(nombre)}</span>${img}`
@@ -340,6 +341,7 @@ function renderizarClasificacion(data) {
 
   section.classList.remove('hidden');
 
+  const logos = data.logos || {};
   const grupos = ['A', 'B'];
   container.innerHTML = grupos.map(grupo => {
     const tabla = calcularClasificacion(data.equipos, data.partidos, grupo);
@@ -362,9 +364,21 @@ function renderizarClasificacion(data) {
               </tr>
             </thead>
             <tbody>
-              ${tabla.map((equipo, pos) => `
+              ${tabla.map((equipo, pos) => {
+                const logoUrl = getLogoEquipo(logos, grupo, equipo.idx);
+                const inicial = escHtml((equipo.nombre || '?')[0].toUpperCase());
+                const fallback = `this.outerHTML='<span class=\\'eq-logo eq-logo-inicial\\' aria-hidden=\\'true\\'>${inicial}</span>'`;
+                const logoEl = logoUrl
+                  ? `<img class="eq-logo" src="${escHtml(logoUrl)}" alt="" loading="lazy" aria-hidden="true" onerror="${fallback}">`
+                  : `<span class="eq-logo eq-logo-inicial" aria-hidden="true">${inicial}</span>`;
+                return `
                 <tr>
-                  <td class="celda-equipo">${escHtml(equipo.nombre)}</td>
+                  <td class="celda-equipo">
+                    <span class="celda-equipo-inner">
+                      ${logoEl}
+                      ${escHtml(equipo.nombre)}
+                    </span>
+                  </td>
                   <td>${equipo.pj}</td>
                   <td>${equipo.g}</td>
                   <td>${equipo.e}</td>
@@ -373,7 +387,8 @@ function renderizarClasificacion(data) {
                   <td>${equipo.gc}</td>
                   <td>${equipo.dg > 0 ? '+' : ''}${equipo.dg}</td>
                   <td class="celda-pts">${equipo.pts}</td>
-                </tr>`).join('')}
+                </tr>`;
+              }).join('')}
             </tbody>
           </table>
         </div>

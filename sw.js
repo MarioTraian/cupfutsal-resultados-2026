@@ -1,4 +1,4 @@
-const CACHE = 'cupfutsal-2026-v1';
+const CACHE = 'cupfutsal-2026-v3';
 
 const STATIC = [
   '/',

@@ -83,6 +83,12 @@ img {
   display: block;
 }
 
+img.eq-logo {
+  width: 28px;
+  height: 28px;
+  max-width: 28px;
+}
+
 button {
   cursor: pointer;
   font-family: var(--font-body);
@@ -691,6 +697,12 @@ input, select, textarea {
 .tabla-clasificacion .celda-equipo {
   font-weight: 600;
   color: var(--text);
+}
+
+.celda-equipo-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .tabla-clasificacion .celda-pts {
