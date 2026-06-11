@@ -157,12 +157,8 @@ async function subirLogoCloudinary(file) {
 
 async function guardarLogo(grupo, idx, logoUrl) {
   if (!isFirebaseConfigured) return;
-  const grupoKey = grupo === 'A' ? 'logosA' : 'logosB';
-  const lista = [...(adminData.equipos?.[grupoKey] ?? [])];
-  while (lista.length <= idx) lista.push(null);
-  lista[idx] = logoUrl;
   const ref = doc(db, 'torneos', 'caspe2026', 'categorias', adminCatActual);
-  await updateDoc(ref, { [`equipos.${grupoKey}`]: lista });
+  await updateDoc(ref, { [`logos.${grupo}_${idx}`]: logoUrl });
 }
 
 /* ───────────────────────────────────────────────
@@ -206,8 +202,7 @@ function crearFilaEquipo(grupo, idx, nombre) {
   row.className = 'admin-equipo-row';
 
   // ── Botón logo ──
-  const grupoKey = grupo === 'A' ? 'logosA' : 'logosB';
-  const logoUrl  = adminData?.equipos?.[grupoKey]?.[idx] || null;
+  const logoUrl = adminData?.logos?.[`${grupo}_${idx}`] || null;
 
   const fileInput = document.createElement('input');
   fileInput.type  = 'file';
@@ -753,9 +748,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Botón "Cancelar" en pantalla de login ──
   document.getElementById('admin-close-login')?.addEventListener('click', cerrarAdmin);
 
+  // ── Botón "← Resultados" — volver a vista pública sin cerrar sesión ──
+  document.getElementById('admin-back-public')?.addEventListener('click', cerrarAdmin);
+
   // ── Botón "Cerrar" en el panel admin ──
   document.getElementById('admin-close-panel')?.addEventListener('click', () => {
-    cerrarSesion(); // cerrar también la sesión al cerrar el panel
+    cerrarSesion();
     cerrarAdmin();
   });
 

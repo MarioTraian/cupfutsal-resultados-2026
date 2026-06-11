@@ -86,9 +86,8 @@ export function getNombreEquipo(equipos, grupo, idx) {
     : (equipos?.grupoB?.[idx] ?? `Equipo ${idx + 6}`);
 }
 
-export function getLogoEquipo(equipos, grupo, idx) {
-  const key = grupo === 'A' ? 'logosA' : 'logosB';
-  return equipos?.[key]?.[idx] || null;
+export function getLogoEquipo(logos, grupo, idx) {
+  return logos?.[`${grupo}_${idx}`] || null;
 }
 
 function logoHtml(url, nombre, lado) {
@@ -281,7 +280,7 @@ function renderizarResultados(data) {
   const section   = document.getElementById('seccion-resultados');
   if (!container) return;
 
-  const { equipos, partidos } = data;
+  const { equipos, partidos, logos = {} } = data;
   const jugados = (partidos ?? []).filter(p => p.jugado);
 
   section.classList.remove('hidden');
@@ -318,11 +317,11 @@ function renderizarResultados(data) {
       <div class="partido-card reveal">
         <span class="partido-grupo-badge">Grupo ${p.grupo}</span>
         <span class="partido-equipo local ${localWin ? 'text-gold' : ''}">
-          ${logoHtml(getLogoEquipo(equipos, p.grupo, p.localIdx), local, 'local')}
+          ${logoHtml(getLogoEquipo(logos, p.grupo, p.localIdx), local, 'local')}
         </span>
         <span class="partido-marcador">${gl} – ${gv}</span>
         <span class="partido-equipo visitante ${visitWin ? 'text-gold' : ''}">
-          ${logoHtml(getLogoEquipo(equipos, p.grupo, p.visitanteIdx), visitante, 'visitante')}
+          ${logoHtml(getLogoEquipo(logos, p.grupo, p.visitanteIdx), visitante, 'visitante')}
         </span>
       </div>`;
   }).join('');
@@ -394,7 +393,7 @@ function renderizarProximos(data) {
   if (!container) return;
 
   section.classList.remove('hidden');
-  const { equipos, partidos } = data;
+  const { equipos, partidos, logos = {} } = data;
   const pendientes = (partidos ?? []).filter(p => !p.jugado);
 
   if (!pendientes.length) {
@@ -430,11 +429,11 @@ function renderizarProximos(data) {
         </div>
         <div class="proximo-partido-grid">
           <span class="partido-equipo local">
-            ${logoHtml(getLogoEquipo(equipos, p.grupo, p.localIdx), local, 'local')}
+            ${logoHtml(getLogoEquipo(logos, p.grupo, p.localIdx), local, 'local')}
           </span>
           <span class="partido-marcador pendiente">vs</span>
           <span class="partido-equipo visitante">
-            ${logoHtml(getLogoEquipo(equipos, p.grupo, p.visitanteIdx), visitante, 'visitante')}
+            ${logoHtml(getLogoEquipo(logos, p.grupo, p.visitanteIdx), visitante, 'visitante')}
           </span>
         </div>
       </div>`;

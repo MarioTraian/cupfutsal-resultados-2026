@@ -437,10 +437,11 @@ input, select, textarea {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  object-fit: contain;
+  object-fit: cover;
   background: rgba(255,255,255,0.05);
   border: 1px solid var(--border-faint);
   flex-shrink: 0;
+  display: block;
 }
 
 .eq-logo-inicial {
@@ -1007,6 +1008,12 @@ input, select, textarea {
   font-size: 1.2rem;
   letter-spacing: 0.06em;
   color: var(--gold);
+}
+
+.admin-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .admin-cat-selector {
