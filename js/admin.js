@@ -169,12 +169,7 @@ function crearBloqueGrupo(grupo, nombres) {
   btnAdd.type = 'button';
   btnAdd.className = 'btn-equipo-add';
   btnAdd.textContent = '+ Añadir equipo';
-  btnAdd.addEventListener('click', () => {
-    const count = block.querySelectorAll('.equipo-input').length;
-    const fila  = crearFilaEquipo(grupo, count, '');
-    block.insertBefore(fila, btnAdd);
-    fila.querySelector('input').focus();
-  });
+  btnAdd.addEventListener('click', () => añadirEquipo(grupo));
   block.appendChild(btnAdd);
 
   return block;
@@ -204,13 +199,71 @@ function crearFilaEquipo(grupo, idx, nombre) {
   btnRemove.textContent = '×';
   btnRemove.title = 'Eliminar equipo';
   btnRemove.setAttribute('aria-label', `Eliminar equipo ${idx + 1} del grupo ${grupo}`);
-  btnRemove.addEventListener('click', () => row.remove());
+  btnRemove.addEventListener('click', () => eliminarEquipo(grupo, idx, nombre));
 
   row.appendChild(num);
   row.appendChild(input);
   row.appendChild(btnRemove);
 
   return row;
+}
+
+async function añadirEquipo(grupo) {
+  if (!adminData || !isFirebaseConfigured) return;
+
+  const grupoKey = grupo === 'A' ? 'grupoA' : 'grupoB';
+  const lista = [...(adminData.equipos?.[grupoKey] ?? [])];
+  const siguiente = lista.length + 1;
+  const nuevoNombre = `Equipo ${siguiente}`;
+  lista.push(nuevoNombre);
+
+  try {
+    const ref = doc(db, 'torneos', 'caspe2026', 'categorias', adminCatActual);
+    await updateDoc(ref, { [`equipos.${grupoKey}`]: lista });
+    mostrarToast(`✅ "${nuevoNombre}" añadido al Grupo ${grupo}`, 'success');
+  } catch (err) {
+    console.error(err);
+    mostrarToast('❌ Error al añadir equipo', 'error');
+  }
+}
+
+async function eliminarEquipo(grupo, idx, nombre) {
+  if (!adminData || !isFirebaseConfigured) return;
+
+  const confirmar = confirm(
+    `¿Eliminar "${nombre}" del Grupo ${grupo}?\n\n` +
+    `También se eliminarán todos sus partidos asociados.\n` +
+    `Esta acción no se puede deshacer.`
+  );
+  if (!confirmar) return;
+
+  const grupoKey = grupo === 'A' ? 'grupoA' : 'grupoB';
+  const lista = [...(adminData.equipos?.[grupoKey] ?? [])];
+  lista.splice(idx, 1);
+
+  // Eliminar partidos del equipo y ajustar índices de los restantes
+  const partidos = (adminData.partidos ?? [])
+    .filter(p => {
+      if (p.grupo !== grupo) return true;
+      return p.localIdx !== idx && p.visitanteIdx !== idx;
+    })
+    .map(p => {
+      if (p.grupo !== grupo) return p;
+      return {
+        ...p,
+        localIdx:     p.localIdx     > idx ? p.localIdx     - 1 : p.localIdx,
+        visitanteIdx: p.visitanteIdx > idx ? p.visitanteIdx - 1 : p.visitanteIdx,
+      };
+    });
+
+  try {
+    const ref = doc(db, 'torneos', 'caspe2026', 'categorias', adminCatActual);
+    await updateDoc(ref, { [`equipos.${grupoKey}`]: lista, partidos });
+    mostrarToast(`✅ "${nombre}" eliminado del Grupo ${grupo}`, 'success');
+  } catch (err) {
+    console.error(err);
+    mostrarToast('❌ Error al eliminar equipo', 'error');
+  }
 }
 
 async function guardarEquipos() {
