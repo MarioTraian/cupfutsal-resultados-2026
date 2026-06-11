@@ -7,10 +7,10 @@
    2. Estado del admin
    3. Autenticación (frontend, sessionStorage)
    4. Apertura / cierre del panel
-   5. Pestaña: Equipos
-   6. Pestaña: Partidos de grupo
-   7. Pestaña: Eliminatoria
-   8. Helpers de Firebase (guardar datos)
+   5. Logos — Cloudinary upload
+   6. Pestaña: Equipos
+   7. Pestaña: Partidos de grupo
+   8. Pestaña: Eliminatoria
    9. Toast de notificaciones
    10. Bootstrap del admin
    ═══════════════════════════════════════════════════════════════════ */
@@ -32,10 +32,10 @@ import {
   escHtml
 } from './app.js';
 
-// ⚠️ Contraseña validada en el frontend (sin backend de auth)
-// Si quieres cambiarla, modifica aquí. NO uses esto en producción para datos sensibles.
-const ADMIN_PASSWORD = 'FutSalMA#TA';
-const SESSION_KEY    = 'cupfutsal_admin_auth';
+const ADMIN_PASSWORD    = 'FutSalMA#TA';
+const SESSION_KEY       = 'cupfutsal_admin_auth';
+const CLOUDINARY_CLOUD  = 'dibczh9c3';
+const CLOUDINARY_PRESET = 'cupfutsal_logos';
 
 /* ───────────────────────────────────────────────
    2. ESTADO DEL ADMIN
@@ -140,7 +140,33 @@ function renderizarTabActual() {
 }
 
 /* ───────────────────────────────────────────────
-   5. PESTAÑA: EQUIPOS
+   5. LOGOS — Cloudinary upload
+─────────────────────────────────────────────── */
+async function subirLogoCloudinary(file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('upload_preset', CLOUDINARY_PRESET);
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`,
+    { method: 'POST', body: fd }
+  );
+  if (!res.ok) throw new Error(`Cloudinary ${res.status}`);
+  const json = await res.json();
+  return json.secure_url;
+}
+
+async function guardarLogo(grupo, idx, logoUrl) {
+  if (!isFirebaseConfigured) return;
+  const grupoKey = grupo === 'A' ? 'logosA' : 'logosB';
+  const lista = [...(adminData.equipos?.[grupoKey] ?? [])];
+  while (lista.length <= idx) lista.push(null);
+  lista[idx] = logoUrl;
+  const ref = doc(db, 'torneos', 'caspe2026', 'categorias', adminCatActual);
+  await updateDoc(ref, { [`equipos.${grupoKey}`]: lista });
+}
+
+/* ───────────────────────────────────────────────
+   6. PESTAÑA: EQUIPOS
 ─────────────────────────────────────────────── */
 function renderTabEquipos() {
   const form = document.getElementById('admin-equipos-form');
@@ -179,10 +205,62 @@ function crearFilaEquipo(grupo, idx, nombre) {
   const row = document.createElement('div');
   row.className = 'admin-equipo-row';
 
+  // ── Botón logo ──
+  const grupoKey = grupo === 'A' ? 'logosA' : 'logosB';
+  const logoUrl  = adminData?.equipos?.[grupoKey]?.[idx] || null;
+
+  const fileInput = document.createElement('input');
+  fileInput.type  = 'file';
+  fileInput.accept = 'image/*';
+  fileInput.style.display = 'none';
+
+  const logoBtn = document.createElement('button');
+  logoBtn.type  = 'button';
+  logoBtn.className = 'btn-logo-upload';
+  logoBtn.title = 'Subir logo del equipo';
+  logoBtn.setAttribute('aria-label', `Subir logo de ${nombre}`);
+
+  const actualizarLogoBtn = (url) => {
+    logoBtn.innerHTML = '';
+    if (url) {
+      const img = document.createElement('img');
+      img.src = url;
+      img.className = 'logo-preview-admin';
+      img.alt = '';
+      logoBtn.appendChild(img);
+    } else {
+      logoBtn.textContent = '📷';
+    }
+  };
+  actualizarLogoBtn(logoUrl);
+
+  logoBtn.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+    logoBtn.disabled = true;
+    logoBtn.textContent = '⏳';
+    try {
+      const url = await subirLogoCloudinary(file);
+      await guardarLogo(grupo, idx, url);
+      actualizarLogoBtn(url);
+      mostrarToast('✅ Logo actualizado', 'success');
+    } catch (err) {
+      console.error(err);
+      mostrarToast('❌ Error al subir el logo', 'error');
+      actualizarLogoBtn(logoUrl);
+    }
+    logoBtn.disabled = false;
+    fileInput.value  = '';
+  });
+
+  // ── Número ──
   const num = document.createElement('span');
   num.className = 'admin-equipo-num';
   num.textContent = `${idx + 1}.`;
 
+  // ── Input nombre ──
   const input = document.createElement('input');
   input.type = 'text';
   input.className = 'admin-text-input equipo-input';
@@ -193,6 +271,7 @@ function crearFilaEquipo(grupo, idx, nombre) {
   input.maxLength = 40;
   input.setAttribute('aria-label', `Equipo ${idx + 1} del grupo ${grupo}`);
 
+  // ── Botón eliminar ──
   const btnRemove = document.createElement('button');
   btnRemove.type = 'button';
   btnRemove.className = 'btn-equipo-remove';
@@ -201,6 +280,8 @@ function crearFilaEquipo(grupo, idx, nombre) {
   btnRemove.setAttribute('aria-label', `Eliminar equipo ${idx + 1} del grupo ${grupo}`);
   btnRemove.addEventListener('click', () => eliminarEquipo(grupo, idx, nombre));
 
+  row.appendChild(logoBtn);
+  row.appendChild(fileInput);
   row.appendChild(num);
   row.appendChild(input);
   row.appendChild(btnRemove);

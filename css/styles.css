@@ -417,10 +417,82 @@ input, select, textarea {
   font-size: clamp(0.78rem, 2.5vw, 0.9rem);
   color: var(--text);
   line-height: 1.3;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
 }
 
-.partido-equipo.local    { text-align: right; }
-.partido-equipo.visitante { text-align: left; }
+.partido-equipo.local    { justify-content: flex-end; }
+.partido-equipo.visitante { justify-content: flex-start; }
+
+.eq-logo-nombre {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.eq-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: contain;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-faint);
+  flex-shrink: 0;
+}
+
+.eq-logo-inicial {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gold-dim);
+  border: 1px solid var(--border);
+  color: var(--gold);
+  font-size: 0.65rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Botón subir logo en el panel admin */
+.btn-logo-upload {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px dashed var(--border-faint);
+  background: none;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  padding: 0;
+  overflow: hidden;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.btn-logo-upload:hover {
+  border-color: var(--gold);
+  background: var(--gold-subtle);
+}
+
+.btn-logo-upload:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.logo-preview-admin {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
 
 .partido-marcador {
   font-family: var(--font-display);
