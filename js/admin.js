@@ -221,10 +221,12 @@ function crearFilaEquipo(grupo, idx, nombre) {
       const img = document.createElement('img');
       img.src = url;
       img.className = 'logo-preview-admin';
-      img.alt = '';
+      img.alt = 'Logo del equipo';
+      logoBtn.title = 'Cambiar logo';
       logoBtn.appendChild(img);
     } else {
-      logoBtn.textContent = '📷';
+      logoBtn.textContent = '🖼';
+      logoBtn.title = 'Subir logo del equipo (clic para elegir imagen)';
     }
   };
   actualizarLogoBtn(logoUrl);

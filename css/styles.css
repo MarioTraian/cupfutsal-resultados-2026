@@ -461,13 +461,13 @@ input, select, textarea {
 
 /* Botón subir logo en el panel admin */
 .btn-logo-upload {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  border: 1px dashed var(--border-faint);
-  background: none;
-  color: var(--text-muted);
-  font-size: 0.85rem;
+  border: 2px solid var(--border);
+  background: var(--gold-dim);
+  color: var(--gold);
+  font-size: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -475,17 +475,19 @@ input, select, textarea {
   cursor: pointer;
   padding: 0;
   overflow: hidden;
-  transition: border-color var(--transition), background var(--transition);
+  transition: border-color var(--transition), background var(--transition), transform var(--transition);
 }
 
 .btn-logo-upload:hover {
   border-color: var(--gold);
-  background: var(--gold-subtle);
+  background: rgba(245,185,66,0.28);
+  transform: scale(1.08);
 }
 
 .btn-logo-upload:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
 }
 
 .logo-preview-admin {
