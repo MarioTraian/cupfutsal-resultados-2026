@@ -366,66 +366,6 @@ async function cargarCategoria(categoriaId) {
   }
 }
 
-/* ───────────────────────────────────────────────
-   6. RENDERIZADO: RESULTADOS
-─────────────────────────────────────────────── */
-function renderizarResultados(data) {
-  const container = document.getElementById('resultados-container');
-  const section   = document.getElementById('seccion-resultados');
-  if (!container) return;
-
-  const { equipos, partidos, logos = {} } = data;
-  const jugados = (partidos ?? []).filter(p => p.jugado);
-
-  section.classList.remove('hidden');
-
-  if (!jugados.length) {
-    container.innerHTML = `
-      <p class="empty-msg">
-        Aún no hay resultados. ¡Vuelve pronto!
-      </p>`;
-    return;
-  }
-
-  // Ordenar: primero los del día viernes, luego sábado, luego sin día
-  const ordenDia = { viernes: 0, sabado: 1 };
-  jugados.sort((a, b) => {
-    const da = ordenDia[a.dia] ?? 2;
-    const db = ordenDia[b.dia] ?? 2;
-    if (da !== db) return da - db;
-    // Misma hora → orden por hora
-    return (a.hora ?? '').localeCompare(b.hora ?? '');
-  });
-
-  const grupoLabel = grupoLabelPorClave(categoriaActual);
-
-  const html = jugados.map(p => {
-    const local     = getNombreEquipo(equipos, p.grupo, p.localIdx);
-    const visitante = getNombreEquipo(equipos, p.grupo, p.visitanteIdx);
-    const gl        = p.golLocal     ?? 0;
-    const gv        = p.golVisitante ?? 0;
-    const gLocal    = Number(gl);
-    const gVisit    = Number(gv);
-    const localWin  = gLocal  > gVisit;
-    const visitWin  = gVisit  > gLocal;
-
-    return `
-      <div class="partido-card reveal">
-        <span class="partido-grupo-badge">${escHtml(grupoLabel(p.grupo))}${p.pista ? ` · ${escHtml(p.pista)}` : ''}</span>
-        <span class="partido-equipo local ${localWin ? 'text-gold' : ''}">
-          ${logoHtml(getLogoEquipo(logos, p.grupo, p.localIdx), local, 'local')}
-        </span>
-        <span class="partido-marcador">${gl} – ${gv}</span>
-        <span class="partido-equipo visitante ${visitWin ? 'text-gold' : ''}">
-          ${logoHtml(getLogoEquipo(logos, p.grupo, p.visitanteIdx), visitante, 'visitante')}
-        </span>
-      </div>`;
-  }).join('');
-
-  container.innerHTML = html;
-  setupReveal(container);
-}
-
 /** Devuelve una función que traduce la clave de un grupo a su etiqueta visible. */
 function grupoLabelPorClave(categoriaId) {
   const grupos = GRUPOS_CATEGORIA[categoriaId] ?? [];
@@ -434,11 +374,11 @@ function grupoLabelPorClave(categoriaId) {
 }
 
 /* ───────────────────────────────────────────────
-   7. RENDERIZADO: CLASIFICACIÓN
+   6. RENDERIZADO: GRUPOS (equipos + clasificación)
 ─────────────────────────────────────────────── */
-function renderizarClasificacion(data) {
-  const container = document.getElementById('clasificacion-container');
-  const section   = document.getElementById('seccion-clasificacion');
+function renderizarGrupos(data) {
+  const container = document.getElementById('grupos-container');
+  const section   = document.getElementById('seccion-grupos');
   if (!container) return;
 
   section.classList.remove('hidden');
@@ -447,10 +387,23 @@ function renderizarClasificacion(data) {
   const grupos = GRUPOS_CATEGORIA[categoriaActual] ?? [];
 
   container.innerHTML = grupos.map(({ key: grupo, nombre }) => {
+    const nombresEquipos = data.equipos?.[grupo] ?? [];
     const tabla = calcularClasificacion(data.equipos, data.partidos, grupo);
+
+    const rosterHtml = nombresEquipos.map((nombreEquipo, idx) => {
+      const logoUrl = getLogoEquipo(logos, grupo, idx);
+      const inicial = escHtml((nombreEquipo || '?')[0].toUpperCase());
+      const fallback = `this.outerHTML='<span class=\\'eq-logo eq-logo-inicial\\' aria-hidden=\\'true\\'>${inicial}</span>'`;
+      const logoEl = logoUrl
+        ? `<img class="eq-logo" src="${escHtml(logoUrl)}" alt="" loading="lazy" aria-hidden="true" onerror="${fallback}">`
+        : `<span class="eq-logo eq-logo-inicial" aria-hidden="true">${inicial}</span>`;
+      return `<span class="roster-chip">${logoEl}${escHtml(nombreEquipo)}</span>`;
+    }).join('');
+
     return `
       <div class="clasificacion-grupo reveal">
         <h3 class="grupo-titulo">${escHtml(nombre)}</h3>
+        <div class="grupo-roster">${rosterHtml}</div>
         <div class="tabla-wrapper">
           <table class="tabla-clasificacion" aria-label="Clasificación ${escHtml(nombre)}">
             <thead>
@@ -502,62 +455,77 @@ function renderizarClasificacion(data) {
 }
 
 /* ───────────────────────────────────────────────
-   8. RENDERIZADO: PRÓXIMOS PARTIDOS
+   7. RENDERIZADO: HORARIOS (calendario completo + resultados)
 ─────────────────────────────────────────────── */
-function renderizarProximos(data) {
-  const container = document.getElementById('proximos-container');
-  const section   = document.getElementById('seccion-proximos');
+function renderizarHorarios(data) {
+  const container = document.getElementById('horarios-container');
+  const section   = document.getElementById('seccion-horarios');
   if (!container) return;
 
   section.classList.remove('hidden');
-  const { equipos, partidos, logos = {} } = data;
-  const pendientes = (partidos ?? []).filter(p => !p.jugado);
 
-  if (!pendientes.length) {
+  const { equipos, partidos, logos = {} } = data;
+  const todos = [...(partidos ?? [])];
+
+  if (!todos.length) {
     container.innerHTML = `
       <p class="empty-msg">
-        ¡Todos los partidos de grupo han sido jugados!
+        Aún no hay partidos programados. ¡Vuelve pronto!
       </p>`;
     return;
   }
 
-  // Ordenar: con hora primero, luego sin hora; dentro de cada grupo por día y hora
+  // Ordenar cronológicamente: día → hora. Sin día/hora al final.
   const ordenDia = { viernes: 0, sabado: 1 };
-  const conHora    = pendientes.filter(p => p.hora).sort((a, b) => {
+  todos.sort((a, b) => {
     const da = ordenDia[a.dia] ?? 2;
     const db = ordenDia[b.dia] ?? 2;
     if (da !== db) return da - db;
     return (a.hora ?? '').localeCompare(b.hora ?? '');
   });
-  const sinHora = pendientes.filter(p => !p.hora);
-  const ordenados = [...conHora, ...sinHora];
 
-  const html = ordenados.map(p => {
+  const grupoLabel = grupoLabelPorClave(categoriaActual);
+
+  let diaAnterior;
+  const filas = todos.map(p => {
     const local     = getNombreEquipo(equipos, p.grupo, p.localIdx);
     const visitante = getNombreEquipo(equipos, p.grupo, p.visitanteIdx);
-    const horaTexto = p.hora ?? '--:--';
-    const diaTexto  = p.dia  ? DIAS[p.dia] : 'Por confirmar';
-    const pistaTexto = p.pista ? ` · ${p.pista}` : '';
+    const gl = Number(p.golLocal ?? 0);
+    const gv = Number(p.golVisitante ?? 0);
+    const localWin = p.jugado && gl > gv;
+    const visitWin = p.jugado && gv > gl;
+
+    let cabeceraDia = '';
+    if (p.dia !== diaAnterior) {
+      diaAnterior = p.dia;
+      cabeceraDia = `<h3 class="horario-dia-titulo">${escHtml(p.dia ? DIAS[p.dia] : 'Día por confirmar')}</h3>`;
+    }
+
+    const badge = `${escHtml(grupoLabel(p.grupo))}${p.pista ? ` · ${escHtml(p.pista)}` : ''}`;
 
     return `
-      <div class="proximo-card reveal">
+      ${cabeceraDia}
+      <div class="proximo-card horario-card reveal">
         <div class="proximo-hora-bloque">
-          <span class="proximo-hora">${escHtml(horaTexto)}</span>
-          <span class="proximo-dia">${escHtml(diaTexto)}${escHtml(pistaTexto)}</span>
+          <span class="proximo-hora">${escHtml(p.hora ?? '--:--')}</span>
+          <span class="proximo-dia">${p.pista ? escHtml(p.pista) : '—'}</span>
         </div>
         <div class="proximo-partido-grid">
-          <span class="partido-equipo local">
+          <span class="partido-equipo local ${localWin ? 'text-gold' : ''}">
             ${logoHtml(getLogoEquipo(logos, p.grupo, p.localIdx), local, 'local')}
           </span>
-          <span class="partido-marcador pendiente">vs</span>
-          <span class="partido-equipo visitante">
+          <span class="partido-marcador ${p.jugado ? '' : 'pendiente'}">
+            ${p.jugado ? `${p.golLocal ?? 0} – ${p.golVisitante ?? 0}` : 'vs'}
+          </span>
+          <span class="partido-equipo visitante ${visitWin ? 'text-gold' : ''}">
             ${logoHtml(getLogoEquipo(logos, p.grupo, p.visitanteIdx), visitante, 'visitante')}
           </span>
         </div>
+        <span class="partido-grupo-badge">${badge}</span>
       </div>`;
   }).join('');
 
-  container.innerHTML = html;
+  container.innerHTML = filas;
   setupReveal(container);
 }
 
@@ -643,9 +611,8 @@ function renderizarTodo(data) {
   main.classList.add('cat-fade-in');
   setTimeout(() => main.classList.remove('cat-fade-in'), 300);
 
-  renderizarResultados(data);
-  renderizarClasificacion(data);
-  renderizarProximos(data);
+  renderizarGrupos(data);
+  renderizarHorarios(data);
   renderizarEliminatoria(data);
 }
 
@@ -685,7 +652,7 @@ function inicializarNavCategorias() {
 }
 
 function ocultarSecciones() {
-  ['resultados', 'clasificacion', 'proximos', 'eliminatoria'].forEach(id => {
+  ['grupos', 'horarios', 'eliminatoria'].forEach(id => {
     const el = document.getElementById(`seccion-${id}`);
     if (el) el.classList.add('hidden');
   });

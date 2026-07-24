@@ -580,6 +580,33 @@ input, select, textarea {
   gap: var(--space-md);
   margin-bottom: 0.5rem;
   transition: transform var(--transition), border-color var(--transition);
+  position: relative;
+}
+
+/* Cabecera de día dentro del calendario de horarios */
+.horario-dia-titulo {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin: var(--space-lg) 0 0.6rem;
+}
+
+.horario-dia-titulo:first-child {
+  margin-top: 0;
+}
+
+/* Deja hueco a la derecha para el badge de grupo/pista */
+.horario-card {
+  padding-right: 5.5rem;
+}
+
+.horario-card .partido-grupo-badge {
+  top: 50%;
+  right: var(--space-md);
+  transform: translateY(-50%);
+  text-align: right;
 }
 
 .proximo-card:hover {
@@ -647,6 +674,27 @@ input, select, textarea {
   color: var(--text-muted);
   margin-bottom: 0.5rem;
   text-transform: uppercase;
+}
+
+/* Listado de equipos del grupo (logo + nombre), antes de la tabla de stats */
+.grupo-roster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: var(--space-md);
+}
+
+.roster-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.3rem 0.85rem 0.3rem 0.3rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
 }
 
 .tabla-wrapper {
