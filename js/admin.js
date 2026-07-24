@@ -24,11 +24,10 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 import {
-  CATEGORIAS,
-  DIAS,
+  GRUPOS_CATEGORIA,
+  ELIMINATORIA_CATEGORIA,
   generarDatosIniciales,
   getNombreEquipo,
-  calcularClasificacion,
   escHtml
 } from './app.js';
 
@@ -36,11 +35,12 @@ const ADMIN_PASSWORD    = 'FutSalMA#TA';
 const SESSION_KEY       = 'cupfutsal_admin_auth';
 const CLOUDINARY_CLOUD  = 'dibczh9c3';
 const CLOUDINARY_PRESET = 'cupfutsal_logos';
+const PISTAS            = ['Pista 1', 'Pista 2'];
 
 /* ───────────────────────────────────────────────
    2. ESTADO DEL ADMIN
 ─────────────────────────────────────────────── */
-let adminCatActual   = 'benjamin';  // categoría seleccionada en el panel admin
+let adminCatActual   = 'infantil'; // categoría seleccionada en el panel admin
 let adminTabActual   = 'equipos'; // pestaña activa del panel admin
 let adminData        = null;       // datos actuales de la categoría
 let adminUnsubscribe = null;       // listener de Firestore para el admin
@@ -133,8 +133,8 @@ async function cargarAdminCategoria(catId) {
 
 function renderizarTabActual() {
   switch (adminTabActual) {
-    case 'equipos':     renderTabEquipos();     break;
-    case 'partidos':    renderTabPartidos();    break;
+    case 'equipos':      renderTabEquipos();      break;
+    case 'partidos':     renderTabPartidos();     break;
     case 'eliminatoria': renderTabEliminatoria(); break;
   }
 }
@@ -183,31 +183,25 @@ function renderTabEquipos() {
   const form = document.getElementById('admin-equipos-form');
   if (!form || !adminData) return;
 
-  const grupoA = adminData.equipos?.grupoA ?? [];
-  const grupoB = adminData.equipos?.grupoB ?? [];
+  const grupos = GRUPOS_CATEGORIA[adminCatActual] ?? [];
 
   form.innerHTML = '';
-  form.appendChild(crearBloqueGrupo('A', grupoA));
-  form.appendChild(crearBloqueGrupo('B', grupoB));
+  grupos.forEach(({ key, nombre }) => {
+    const nombres = adminData.equipos?.[key] ?? [];
+    form.appendChild(crearBloqueGrupo(key, nombre, nombres));
+  });
 }
 
-function crearBloqueGrupo(grupo, nombres) {
+function crearBloqueGrupo(grupo, etiqueta, nombres) {
   const block = document.createElement('div');
   block.className = 'admin-group-block';
 
   const titulo = document.createElement('h3');
   titulo.className = 'admin-group-title';
-  titulo.textContent = `Grupo ${grupo}`;
+  titulo.textContent = etiqueta;
   block.appendChild(titulo);
 
   nombres.forEach((nombre, i) => block.appendChild(crearFilaEquipo(grupo, i, nombre)));
-
-  const btnAdd = document.createElement('button');
-  btnAdd.type = 'button';
-  btnAdd.className = 'btn-equipo-add';
-  btnAdd.textContent = '+ Añadir equipo';
-  btnAdd.addEventListener('click', () => añadirEquipo(grupo));
-  block.appendChild(btnAdd);
 
   return block;
 }
@@ -297,103 +291,33 @@ function crearFilaEquipo(grupo, idx, nombre) {
   input.maxLength   = 40;
   input.setAttribute('aria-label', `Equipo ${idx + 1} del grupo ${grupo}`);
 
-  // ── Botón eliminar equipo ──
-  const btnRemove = document.createElement('button');
-  btnRemove.type      = 'button';
-  btnRemove.className = 'btn-equipo-remove';
-  btnRemove.textContent = '×';
-  btnRemove.title = 'Eliminar equipo';
-  btnRemove.setAttribute('aria-label', `Eliminar equipo ${idx + 1} del grupo ${grupo}`);
-  btnRemove.addEventListener('click', () => eliminarEquipo(grupo, idx, nombre));
-
   row.appendChild(logoBtn);
   row.appendChild(btnDeleteLogo);
   row.appendChild(fileInput);
   row.appendChild(num);
   row.appendChild(input);
-  row.appendChild(btnRemove);
 
   return row;
-}
-
-async function añadirEquipo(grupo) {
-  if (!adminData || !isFirebaseConfigured) return;
-
-  const grupoKey = grupo === 'A' ? 'grupoA' : 'grupoB';
-  const lista = [...(adminData.equipos?.[grupoKey] ?? [])];
-  const siguiente = lista.length + 1;
-  const nuevoNombre = `Equipo ${siguiente}`;
-  lista.push(nuevoNombre);
-
-  try {
-    const ref = doc(db, 'torneos', 'caspe2026', 'categorias', adminCatActual);
-    await updateDoc(ref, { [`equipos.${grupoKey}`]: lista });
-    mostrarToast(`✅ "${nuevoNombre}" añadido al Grupo ${grupo}`, 'success');
-  } catch (err) {
-    console.error(err);
-    mostrarToast('❌ Error al añadir equipo', 'error');
-  }
-}
-
-async function eliminarEquipo(grupo, idx, nombre) {
-  if (!adminData || !isFirebaseConfigured) return;
-
-  const confirmar = confirm(
-    `¿Eliminar "${nombre}" del Grupo ${grupo}?\n\n` +
-    `También se eliminarán todos sus partidos asociados.\n` +
-    `Esta acción no se puede deshacer.`
-  );
-  if (!confirmar) return;
-
-  const grupoKey = grupo === 'A' ? 'grupoA' : 'grupoB';
-  const lista = [...(adminData.equipos?.[grupoKey] ?? [])];
-  lista.splice(idx, 1);
-
-  // Eliminar partidos del equipo y ajustar índices de los restantes
-  const partidos = (adminData.partidos ?? [])
-    .filter(p => {
-      if (p.grupo !== grupo) return true;
-      return p.localIdx !== idx && p.visitanteIdx !== idx;
-    })
-    .map(p => {
-      if (p.grupo !== grupo) return p;
-      return {
-        ...p,
-        localIdx:     p.localIdx     > idx ? p.localIdx     - 1 : p.localIdx,
-        visitanteIdx: p.visitanteIdx > idx ? p.visitanteIdx - 1 : p.visitanteIdx,
-      };
-    });
-
-  try {
-    const ref = doc(db, 'torneos', 'caspe2026', 'categorias', adminCatActual);
-    await updateDoc(ref, { [`equipos.${grupoKey}`]: lista, partidos });
-    mostrarToast(`✅ "${nombre}" eliminado del Grupo ${grupo}`, 'success');
-  } catch (err) {
-    console.error(err);
-    mostrarToast('❌ Error al eliminar equipo', 'error');
-  }
 }
 
 async function guardarEquipos() {
   if (!adminData) return;
 
-  const form = document.getElementById('admin-equipos-form');
-  const nuevoGrupoA = [];
-  const nuevoGrupoB = [];
+  const form   = document.getElementById('admin-equipos-form');
+  const grupos = GRUPOS_CATEGORIA[adminCatActual] ?? [];
+  const updates = {};
 
-  form.querySelectorAll('.equipo-input[data-grupo="A"]').forEach((input, i) => {
-    nuevoGrupoA.push(input.value.trim() || `Equipo ${i + 1}`);
-  });
-  form.querySelectorAll('.equipo-input[data-grupo="B"]').forEach((input, i) => {
-    nuevoGrupoB.push(input.value.trim() || `Equipo ${i + 6}`);
+  grupos.forEach(({ key }) => {
+    const nombres = [];
+    form.querySelectorAll(`.equipo-input[data-grupo="${key}"]`).forEach((input, i) => {
+      nombres.push(input.value.trim() || `Equipo ${i + 1}`);
+    });
+    updates[`equipos.${key}`] = nombres;
   });
 
   try {
     const ref = doc(db, 'torneos', 'caspe2026', 'categorias', adminCatActual);
-    await updateDoc(ref, {
-      'equipos.grupoA': nuevoGrupoA,
-      'equipos.grupoB': nuevoGrupoB
-    });
+    await updateDoc(ref, updates);
     mostrarToast('✅ Equipos guardados correctamente', 'success');
   } catch (err) {
     console.error(err);
@@ -402,30 +326,34 @@ async function guardarEquipos() {
 }
 
 /* ───────────────────────────────────────────────
-   6. PESTAÑA: PARTIDOS DE GRUPO
+   7. PESTAÑA: PARTIDOS DE GRUPO
 ─────────────────────────────────────────────── */
 function renderTabPartidos() {
   const form = document.getElementById('admin-partidos-form');
   if (!form || !adminData) return;
 
   const { equipos, partidos } = adminData;
-  const grupoA = (partidos ?? []).filter(p => p.grupo === 'A');
-  const grupoB = (partidos ?? []).filter(p => p.grupo === 'B');
+  const grupos = GRUPOS_CATEGORIA[adminCatActual] ?? [];
 
-  form.innerHTML = `
-    <h3 class="admin-grupo-header">Grupo A</h3>
-    <div class="admin-partidos-grupo" data-grupo="A">
-      ${grupoA.map(p => renderPartidoAdminCard(p, equipos)).join('')}
-    </div>
-    <h3 class="admin-grupo-header">Grupo B</h3>
-    <div class="admin-partidos-grupo" data-grupo="B">
-      ${grupoB.map(p => renderPartidoAdminCard(p, equipos)).join('')}
-    </div>`;
+  form.innerHTML = grupos.map(({ key, nombre }) => {
+    const partidosGrupo = (partidos ?? []).filter(p => p.grupo === key);
+    return `
+      <h3 class="admin-grupo-header">${escHtml(nombre)}</h3>
+      <div class="admin-partidos-grupo" data-grupo="${escHtml(key)}">
+        ${partidosGrupo.map(p => renderPartidoAdminCard(p, equipos)).join('')}
+      </div>`;
+  }).join('');
 
   // Delegación de eventos: escuchar clicks en los botones "Guardar"
   form.querySelectorAll('.admin-save-partido-btn').forEach(btn => {
     btn.addEventListener('click', () => guardarPartido(btn.dataset.partidoId));
   });
+}
+
+function opcionesPista(seleccionada) {
+  const vacia = `<option value="" ${!seleccionada ? 'selected' : ''}>Pista</option>`;
+  const resto = PISTAS.map(p => `<option value="${escHtml(p)}" ${p === seleccionada ? 'selected' : ''}>${escHtml(p)}</option>`).join('');
+  return vacia + resto;
 }
 
 function renderPartidoAdminCard(partido, equipos) {
@@ -435,6 +363,7 @@ function renderPartidoAdminCard(partido, equipos) {
   const gv  = partido.golVisitante ?? '';
   const dia = partido.dia          ?? '';
   const hora = partido.hora        ?? '';
+  const pista = partido.pista      ?? '';
 
   return `
     <div class="admin-partido-card" id="admin-partido-${escHtml(partido.id)}">
@@ -485,6 +414,12 @@ function renderPartidoAdminCard(partido, equipos) {
           data-partido-id="${escHtml(partido.id)}"
           aria-label="Hora del partido"
         >
+        <select
+          class="admin-dia-select"
+          data-campo="pista"
+          data-partido-id="${escHtml(partido.id)}"
+          aria-label="Pista del partido"
+        >${opcionesPista(pista)}</select>
         <label class="admin-jugado-label">
           <input
             type="checkbox"
@@ -511,16 +446,18 @@ async function guardarPartido(partidoId) {
   const card      = document.getElementById(`admin-partido-${partidoId}`);
   if (!card) return;
 
-  const glInput   = card.querySelector('[data-campo="golLocal"]');
-  const gvInput   = card.querySelector('[data-campo="golVisitante"]');
-  const diaSelect = card.querySelector('[data-campo="dia"]');
-  const horaInput = card.querySelector('[data-campo="hora"]');
-  const jugadoCb  = card.querySelector('[data-campo="jugado"]');
+  const glInput    = card.querySelector('[data-campo="golLocal"]');
+  const gvInput    = card.querySelector('[data-campo="golVisitante"]');
+  const diaSelect  = card.querySelector('[data-campo="dia"]');
+  const horaInput  = card.querySelector('[data-campo="hora"]');
+  const pistaSelect = card.querySelector('[data-campo="pista"]');
+  const jugadoCb   = card.querySelector('[data-campo="jugado"]');
 
   const gl      = glInput?.value    !== '' ? parseInt(glInput.value, 10)   : null;
   const gv      = gvInput?.value    !== '' ? parseInt(gvInput.value, 10)   : null;
   const dia     = diaSelect?.value  || null;
   const hora    = horaInput?.value  || null;
+  const pista   = pistaSelect?.value || null;
   const jugado  = jugadoCb?.checked ?? false;
 
   // Encontrar índice del partido en el array
@@ -531,7 +468,7 @@ async function guardarPartido(partidoId) {
     return;
   }
 
-  partidos[idx] = { ...partidos[idx], golLocal: gl, golVisitante: gv, dia, hora, jugado };
+  partidos[idx] = { ...partidos[idx], golLocal: gl, golVisitante: gv, dia, hora, pista, jugado };
 
   try {
     const ref = doc(db, 'torneos', 'caspe2026', 'categorias', adminCatActual);
@@ -544,52 +481,23 @@ async function guardarPartido(partidoId) {
 }
 
 /* ───────────────────────────────────────────────
-   7. PESTAÑA: ELIMINATORIA
+   8. PESTAÑA: ELIMINATORIA
 ─────────────────────────────────────────────── */
 function renderTabEliminatoria() {
   const form = document.getElementById('admin-eliminatoria-form');
   if (!form || !adminData) return;
 
-  const { equipos, partidos, eliminatoria } = adminData;
-
-  // Calcular cruces automáticos
-  const clasificA = calcularClasificacion(equipos, partidos, 'A');
-  const clasificB = calcularClasificacion(equipos, partidos, 'B');
-
-  const totalGrupo    = (partidos ?? []).length;
-  const jugadosGrupo  = (partidos ?? []).filter(p => p.jugado).length;
-  const gruposListos  = totalGrupo > 0 && jugadosGrupo === totalGrupo;
-
-  const sf1Datos = eliminatoria?.sf1   ?? {};
-  const sf2Datos = eliminatoria?.sf2   ?? {};
-  const finDatos = eliminatoria?.final ?? {};
-
-  // Equipos auto (si grupos terminados)
-  const sf1LocalAuto     = gruposListos ? (clasificA[0]?.nombre ?? '') : '';
-  const sf1VisitanteAuto = gruposListos ? (clasificB[1]?.nombre ?? '') : '';
-  const sf2LocalAuto     = gruposListos ? (clasificB[0]?.nombre ?? '') : '';
-  const sf2VisitanteAuto = gruposListos ? (clasificA[1]?.nombre ?? '') : '';
-
-  const aviso = !gruposListos
-    ? `<div class="admin-hint" style="margin-bottom:1rem;color:var(--gold)">
-        ⚠️ Los grupos no han terminado. Los equipos de SF se auto-rellenarán al terminar.
-       </div>`
-    : '';
+  const { eliminatoria = {} } = adminData;
+  const rondas = ELIMINATORIA_CATEGORIA[adminCatActual] ?? [];
 
   form.innerHTML = `
-    ${aviso}
-    ${renderElimAdminCard('sf1', 'SEMIFINAL 1',
-      sf1Datos.equipoLocal     ?? sf1LocalAuto,
-      sf1Datos.equipoVisitante ?? sf1VisitanteAuto,
-      sf1Datos)}
-    ${renderElimAdminCard('sf2', 'SEMIFINAL 2',
-      sf2Datos.equipoLocal     ?? sf2LocalAuto,
-      sf2Datos.equipoVisitante ?? sf2VisitanteAuto,
-      sf2Datos)}
-    ${renderElimAdminCard('final', '🏆 FINAL',
-      finDatos.equipoLocal     ?? (sf1Datos.jugado ? getGanadorNombre(sf1Datos, sf1LocalAuto, sf1VisitanteAuto) : ''),
-      finDatos.equipoVisitante ?? (sf2Datos.jugado ? getGanadorNombre(sf2Datos, sf2LocalAuto, sf2VisitanteAuto) : ''),
-      finDatos)}
+    <div class="admin-hint" style="margin-bottom:1rem">
+      Introduce manualmente los equipos de cada ronda de eliminatoria a medida que se van definiendo.
+    </div>
+    ${rondas.map(({ key, label }) => {
+      const datos = eliminatoria[key] ?? {};
+      return renderElimAdminCard(key, label, datos.equipoLocal ?? '', datos.equipoVisitante ?? '', datos);
+    }).join('')}
   `;
 
   form.querySelectorAll('.admin-save-elim-btn').forEach(btn => {
@@ -597,26 +505,16 @@ function renderTabEliminatoria() {
   });
 }
 
-function getGanadorNombre(datos, localFallback, visitanteFallback) {
-  if (!datos.jugado) return '';
-  const local     = datos.equipoLocal     ?? localFallback;
-  const visitante = datos.equipoVisitante ?? visitanteFallback;
-  const gl = Number(datos.golLocal ?? 0);
-  const gv = Number(datos.golVisitante ?? 0);
-  if (gl > gv) return local;
-  if (gv > gl) return visitante;
-  return '';
-}
-
 function renderElimAdminCard(ronda, label, localNombre, visitanteNombre, datos) {
   const gl    = datos?.golLocal     ?? '';
   const gv    = datos?.golVisitante ?? '';
   const dia   = datos?.dia          ?? '';
   const hora  = datos?.hora         ?? '';
+  const pista = datos?.pista        ?? '';
 
   return `
     <div class="admin-elim-card">
-      <h3 class="admin-elim-label">${label}</h3>
+      <h3 class="admin-elim-label">${escHtml(label)}</h3>
       <div class="admin-elim-equipos">
         <div class="admin-elim-equipo-block">
           <label for="elim-${ronda}-local">Equipo Local</label>
@@ -625,7 +523,7 @@ function renderElimAdminCard(ronda, label, localNombre, visitanteNombre, datos) 
             id="elim-${ronda}-local"
             class="admin-text-input"
             value="${escHtml(localNombre ?? '')}"
-            placeholder="Auto desde clasificación"
+            placeholder="Nombre del equipo"
             data-campo="equipoLocal"
             data-ronda="${ronda}"
             maxlength="40"
@@ -638,7 +536,7 @@ function renderElimAdminCard(ronda, label, localNombre, visitanteNombre, datos) 
             id="elim-${ronda}-visitante"
             class="admin-text-input"
             value="${escHtml(visitanteNombre ?? '')}"
-            placeholder="Auto desde clasificación"
+            placeholder="Nombre del equipo"
             data-campo="equipoVisitante"
             data-ronda="${ronda}"
             maxlength="40"
@@ -687,6 +585,12 @@ function renderElimAdminCard(ronda, label, localNombre, visitanteNombre, datos) 
           data-ronda="${ronda}"
           aria-label="Hora"
         >
+        <select
+          class="admin-dia-select"
+          data-campo="pista"
+          data-ronda="${ronda}"
+          aria-label="Pista"
+        >${opcionesPista(pista)}</select>
         <label class="admin-jugado-label">
           <input
             type="checkbox"
@@ -722,15 +626,15 @@ async function guardarEliminatoria(ronda) {
   const gv    = gvEl?.value  !== '' ? parseInt(gvEl.value, 10)  : null;
   const dia   = getValue('dia')?.value    || null;
   const hora  = getValue('hora')?.value   || null;
+  const pista = getValue('pista')?.value  || null;
   const jugado= getValue('jugado')?.checked ?? false;
 
-  const key = ronda === 'final' ? 'final' : ronda; // 'sf1', 'sf2', 'final'
-  const updatePath = `eliminatoria.${key}`;
+  const updatePath = `eliminatoria.${ronda}`;
 
   try {
     const ref = doc(db, 'torneos', 'caspe2026', 'categorias', adminCatActual);
     await updateDoc(ref, {
-      [updatePath]: { equipoLocal, equipoVisitante, golLocal: gl, golVisitante: gv, dia, hora, jugado }
+      [updatePath]: { equipoLocal, equipoVisitante, golLocal: gl, golVisitante: gv, dia, hora, pista, jugado }
     });
     mostrarToast(`✅ ${ronda.toUpperCase()} guardado`, 'success');
   } catch (err) {

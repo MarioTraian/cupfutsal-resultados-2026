@@ -5,8 +5,8 @@
    Secciones:
    1. Imports y constantes
    2. Estado de la app
-   3. Utilidades de datos (round-robin, clasificación)
-   4. Inicialización de datos en Firebase
+   3. Utilidades de datos (clasificación)
+   4. Datos iniciales por categoría (equipos, partidos, eliminatoria)
    5. Lógica de carga de categoría (Firestore listener)
    6. Renderizado: Resultados
    7. Renderizado: Clasificación
@@ -28,8 +28,13 @@ import {
 // Importar módulo admin (inicializa el panel de administración)
 import './admin.js';
 
-// IDs de las 6 categorías
-export const CATEGORIAS = ['benjamin', 'alevin', 'infantil', 'cadete', 'juvenilsenior'];
+// IDs de las 2 categorías del torneo
+export const CATEGORIAS = ['infantil', 'juvenilsenior'];
+
+export const CATEGORIA_LABELS = {
+  infantil:      'Infantil',
+  juvenilsenior: 'Juvenil / Sénior'
+};
 
 // Nombres de los días tal como se mostrarán en la web
 export const DIAS = {
@@ -37,10 +42,39 @@ export const DIAS = {
   sabado:  'Sábado 25'
 };
 
+// Grupos de cada categoría (clave interna + etiqueta visible)
+export const GRUPOS_CATEGORIA = {
+  infantil: [
+    { key: 'A', nombre: 'Grupo Único' }
+  ],
+  juvenilsenior: [
+    { key: 'G1', nombre: 'Grupo 1' },
+    { key: 'G2', nombre: 'Grupo 2' },
+    { key: 'G3', nombre: 'Grupo 3' }
+  ]
+};
+
+// Rondas de la fase eliminatoria de cada categoría (asignación manual de equipos)
+export const ELIMINATORIA_CATEGORIA = {
+  infantil: [
+    { key: 'cuartos1',  label: 'Cuartos de Final' },
+    { key: 'cuartos2',  label: 'Cuartos de Final' },
+    { key: 'semifinal', label: 'Semifinal' },
+    { key: 'final',     label: 'Final Infantil', esFinal: true }
+  ],
+  juvenilsenior: [
+    { key: 'cuartos1',     label: 'Cuartos de Final' },
+    { key: 'cuartos2',     label: 'Cuartos de Final' },
+    { key: 'semifinalB',   label: 'Semifinal B' },
+    { key: 'tercerpuesto', label: '3º y 4º puesto' },
+    { key: 'final',        label: 'Final Sénior', esFinal: true }
+  ]
+};
+
 /* ───────────────────────────────────────────────
    2. ESTADO DE LA APP
 ─────────────────────────────────────────────── */
-let categoriaActual  = 'benjamin'; // pestaña activa por defecto
+let categoriaActual  = 'infantil'; // pestaña activa por defecto
 let unsubscribeFn    = null;      // función para cancelar el listener de Firestore
 
 /* ───────────────────────────────────────────────
@@ -48,42 +82,14 @@ let unsubscribeFn    = null;      // función para cancelar el listener de Fires
 ─────────────────────────────────────────────── */
 
 /**
- * Genera los partidos round-robin para un grupo de 5 equipos.
- * Cada equipo juega contra los otros 4 → 10 partidos por grupo.
- * @param {string} grupo  'A' o 'B'
- * @returns {Array} Array de objetos partido
- */
-export function generarRoundRobin(grupo) {
-  const partidos = [];
-  for (let i = 0; i < 5; i++) {
-    for (let j = i + 1; j < 5; j++) {
-      partidos.push({
-        id:           `${grupo}_${i}_${j}`,
-        grupo:        grupo,
-        localIdx:     i,
-        visitanteIdx: j,
-        golLocal:     null,
-        golVisitante: null,
-        jugado:       false,
-        dia:          null,
-        hora:         null
-      });
-    }
-  }
-  return partidos; // 10 partidos
-}
-
-/**
  * Obtiene el nombre de un equipo por su grupo e índice.
- * @param {object} equipos  { grupoA: [...], grupoB: [...] }
- * @param {string} grupo    'A' o 'B'
- * @param {number} idx      0–4
+ * @param {object} equipos  { [grupoKey]: [...nombres] }
+ * @param {string} grupo    clave del grupo
+ * @param {number} idx
  * @returns {string}
  */
 export function getNombreEquipo(equipos, grupo, idx) {
-  return grupo === 'A'
-    ? (equipos?.grupoA?.[idx] ?? `Equipo ${idx + 1}`)
-    : (equipos?.grupoB?.[idx] ?? `Equipo ${idx + 6}`);
+  return equipos?.[grupo]?.[idx] ?? `Equipo ${idx + 1}`;
 }
 
 export function getLogoEquipo(logos, grupo, idx) {
@@ -106,11 +112,11 @@ function logoHtml(url, nombre, lado) {
  * Criterios de desempate: Pts → DG → GF → nombre alfabético.
  * @param {object} equipos
  * @param {Array}  partidos
- * @param {string} grupo     'A' o 'B'
+ * @param {string} grupo     clave del grupo
  * @returns {Array} Tabla ordenada
  */
 export function calcularClasificacion(equipos, partidos, grupo) {
-  const nombresGrupo = grupo === 'A' ? (equipos?.grupoA ?? []) : (equipos?.grupoB ?? []);
+  const nombresGrupo = equipos?.[grupo] ?? [];
   const tabla = nombresGrupo.map((nombre, idx) => ({
     nombre, idx, pj: 0, g: 0, e: 0, p: 0, gf: 0, gc: 0, dg: 0, pts: 0
   }));
@@ -166,8 +172,136 @@ function getGanador(equipoLocal, equipoVisitante, golLocal, golVisitante) {
 }
 
 /* ───────────────────────────────────────────────
-   4. INICIALIZACIÓN DE DATOS POR DEFECTO
+   4. DATOS INICIALES POR CATEGORÍA
 ─────────────────────────────────────────────── */
+
+let contadorPartido = 0;
+
+/** Crea un objeto partido con id autogenerado. */
+function crearPartido(grupo, localIdx, visitanteIdx, dia, hora, pista) {
+  contadorPartido++;
+  return {
+    id: `${grupo}_${contadorPartido}`,
+    grupo, localIdx, visitanteIdx,
+    golLocal: null, golVisitante: null,
+    jugado: false,
+    dia, hora, pista
+  };
+}
+
+/** Crea un slot vacío de eliminatoria (equipos y horario definidos manualmente por el admin). */
+function crearSlotEliminatoria(dia, hora, pista) {
+  return {
+    equipoLocal: null, equipoVisitante: null,
+    golLocal: null, golVisitante: null,
+    jugado: false,
+    dia: dia ?? null, hora: hora ?? null, pista: pista ?? null
+  };
+}
+
+/**
+ * Genera los datos iniciales de la categoría INFANTIL:
+ * Grupo único de 4 equipos (FUT TEAM, Filósofos, Cojos United, Mástercher Piti),
+ * round-robin completo (6 partidos, repartidos entre viernes y sábado) + eliminatoria.
+ */
+function datosInicialesInfantil() {
+  contadorPartido = 0;
+  // idx: 0 FUT TEAM · 1 Filósofos · 2 Cojos United · 3 Mástercher Piti
+  const equipos = { A: ['FUT TEAM', 'Filósofos', 'Cojos United', 'Mástercher Piti'] };
+  const logos = {
+    A_0: 'logosequipos/futteam.jpg',
+    A_1: 'logosequipos/filosofos.jpg',
+    A_3: 'logosequipos/manchesterpiti.jpg'
+  };
+  const partidos = [
+    crearPartido('A', 0, 1, 'viernes', '18:40', 'Pista 1'),
+    crearPartido('A', 0, 2, 'viernes', '20:00', 'Pista 1'),
+    crearPartido('A', 1, 2, 'viernes', '21:20', 'Pista 1'),
+    crearPartido('A', 3, 0, 'sabado',  '13:00', 'Pista 1'),
+    crearPartido('A', 3, 1, 'sabado',  '15:00', 'Pista 1'),
+    crearPartido('A', 3, 2, 'sabado',  '16:20', 'Pista 1')
+  ];
+  const eliminatoria = {
+    cuartos1:  crearSlotEliminatoria('sabado', '17:00', 'Pista 1'),
+    cuartos2:  crearSlotEliminatoria('sabado', '17:40', 'Pista 1'),
+    semifinal: crearSlotEliminatoria('sabado', '18:20', 'Pista 1'),
+    final:     crearSlotEliminatoria('sabado', '20:00', 'Pista 1')
+  };
+  return { equipos, logos, partidos, eliminatoria };
+}
+
+/**
+ * Genera los datos iniciales de la categoría JUVENIL/SÉNIOR:
+ * 3 grupos con round-robin completo (viernes + sesión de noche) + eliminatoria del sábado.
+ */
+function datosInicialesJuvenilSenior() {
+  contadorPartido = 0;
+  // Grupo 1 — idx: 0 Bar Micaffe · 1 Rocky FC · 2 Miguelín Pipas · 3 Brigavins · 4 Atlas
+  // Grupo 2 — idx: 0 Pub Bana 2000 · 1 NoPartyBoys · 2 Insolens · 3 Joga Bonito · 4 Inter Junior
+  // Grupo 3 — idx: 0 Racing de Albacete · 1 Real Suciedad FC · 2 La Cantera FC · 3 Masturbinho y sus Apóstoles
+  const equipos = {
+    G1: ['Bar Micaffe', 'Rocky FC', 'Miguelín Pipas', 'Brigavins', 'Atlas'],
+    G2: ['Pub Bana 2000', 'NoPartyBoys', 'Insolens', 'Joga Bonito', 'Inter Junior'],
+    G3: ['Racing de Albacete', 'Real Suciedad FC', 'La Cantera FC', 'Masturbinho y sus Apóstoles']
+  };
+  const logos = {
+    G1_0: 'logosequipos/miccafe.png',
+    G1_1: 'logosequipos/rockyfc.jpg',
+    G1_2: 'logosequipos/miguelinpipas.jpg',
+    G1_4: 'logosequipos/atlas.jpg',
+    G2_0: 'logosequipos/pubbana.jpg',
+    G2_1: 'logosequipos/nopartyboys.jpg',
+    G2_2: 'logosequipos/INSOLENS.jpg',
+    G2_4: 'logosequipos/interjunior.jpg',
+    G3_2: 'logosequipos/lacantera.jpg',
+    G3_3: 'logosequipos/masturbinhoysusdiscipulos.jpg'
+  };
+
+  const partidos = [
+    // ── Grupo 3 — viernes tarde ──
+    crearPartido('G3', 0, 1, 'viernes', '18:00', 'Pista 1'),
+    crearPartido('G3', 2, 3, 'viernes', '18:00', 'Pista 2'),
+    crearPartido('G3', 0, 2, 'viernes', '19:20', 'Pista 1'),
+    crearPartido('G3', 1, 3, 'viernes', '19:20', 'Pista 2'),
+    crearPartido('G3', 0, 3, 'viernes', '20:40', 'Pista 1'),
+    crearPartido('G3', 1, 2, 'viernes', '20:40', 'Pista 2'),
+
+    // ── Grupo Infantil interlazado en Pista 1 (ver categoría Infantil) + Grupo 1 en Pista 2 ──
+    crearPartido('G1', 1, 2, 'viernes', '18:40', 'Pista 2'),
+    crearPartido('G1', 4, 3, 'viernes', '20:00', 'Pista 2'),
+    crearPartido('G1', 0, 1, 'viernes', '21:20', 'Pista 2'),
+
+    // ── Sesión de noche ──
+    crearPartido('G2', 0, 1, 'viernes', '22:00', 'Pista 1'),
+    crearPartido('G2', 2, 3, 'viernes', '22:00', 'Pista 2'),
+    crearPartido('G1', 0, 3, 'viernes', '22:40', 'Pista 1'),
+    crearPartido('G1', 2, 4, 'viernes', '22:40', 'Pista 2'),
+    crearPartido('G2', 0, 2, 'viernes', '23:20', 'Pista 1'),
+    crearPartido('G2', 3, 4, 'viernes', '23:20', 'Pista 2'),
+    crearPartido('G1', 0, 2, 'sabado',  '00:00', 'Pista 1'),
+    crearPartido('G1', 1, 4, 'sabado',  '00:00', 'Pista 2'),
+    crearPartido('G2', 0, 3, 'sabado',  '00:40', 'Pista 1'),
+    crearPartido('G2', 1, 4, 'sabado',  '00:40', 'Pista 2'),
+    crearPartido('G1', 0, 4, 'sabado',  '01:20', 'Pista 1'),
+    crearPartido('G1', 2, 3, 'sabado',  '01:20', 'Pista 2'),
+    crearPartido('G2', 0, 4, 'sabado',  '02:00', 'Pista 1'),
+    crearPartido('G2', 1, 2, 'sabado',  '02:00', 'Pista 2'),
+    crearPartido('G1', 1, 3, 'sabado',  '02:40', 'Pista 1'),
+    // 02:40 Pista 2 — pista libre (sin partido)
+    crearPartido('G2', 1, 3, 'sabado',  '03:20', 'Pista 1'),
+    crearPartido('G2', 2, 4, 'sabado',  '03:20', 'Pista 2')
+  ];
+
+  const eliminatoria = {
+    cuartos1:     crearSlotEliminatoria('sabado', '17:00', 'Pista 1'),
+    cuartos2:     crearSlotEliminatoria('sabado', '17:40', 'Pista 1'),
+    semifinalB:   crearSlotEliminatoria('sabado', '19:10', 'Pista 1'),
+    tercerpuesto: crearSlotEliminatoria('sabado', '20:40', 'Pista 1'),
+    final:        crearSlotEliminatoria('sabado', '21:40', 'Pista 1')
+  };
+
+  return { equipos, logos, partidos, eliminatoria };
+}
 
 /**
  * Genera los datos por defecto para una categoría cuando aún no existen en Firestore.
@@ -175,50 +309,9 @@ function getGanador(equipoLocal, equipoVisitante, golLocal, golVisitante) {
  * @returns {object} Documento inicial
  */
 export function generarDatosIniciales(categoriaId) {
-  return {
-    equipos: categoriaId === 'juvenilsenior'
-      ? {
-          grupoA: ['Equipo 1', 'Equipo 2', 'Equipo 3', 'Equipo 4', 'Equipo 5', 'Equipo 11'],
-          grupoB: ['Equipo 6', 'Equipo 7', 'Equipo 8', 'Equipo 9', 'Equipo 10', 'Equipo 12']
-        }
-      : {
-          grupoA: ['Equipo 1', 'Equipo 2', 'Equipo 3', 'Equipo 4', 'Equipo 5'],
-          grupoB: ['Equipo 6', 'Equipo 7', 'Equipo 8', 'Equipo 9', 'Equipo 10']
-        },
-    partidos: [
-      ...generarRoundRobin('A'),
-      ...generarRoundRobin('B')
-    ],
-    eliminatoria: {
-      sf1: {
-        equipoLocal:      null,
-        equipoVisitante:  null,
-        golLocal:         null,
-        golVisitante:     null,
-        jugado:           false,
-        dia:              null,
-        hora:             null
-      },
-      sf2: {
-        equipoLocal:      null,
-        equipoVisitante:  null,
-        golLocal:         null,
-        golVisitante:     null,
-        jugado:           false,
-        dia:              null,
-        hora:             null
-      },
-      final: {
-        equipoLocal:      null,
-        equipoVisitante:  null,
-        golLocal:         null,
-        golVisitante:     null,
-        jugado:           false,
-        dia:              null,
-        hora:             null
-      }
-    }
-  };
+  return categoriaId === 'infantil'
+    ? datosInicialesInfantil()
+    : datosInicialesJuvenilSenior();
 }
 
 /**
@@ -304,6 +397,8 @@ function renderizarResultados(data) {
     return (a.hora ?? '').localeCompare(b.hora ?? '');
   });
 
+  const grupoLabel = grupoLabelPorClave(categoriaActual);
+
   const html = jugados.map(p => {
     const local     = getNombreEquipo(equipos, p.grupo, p.localIdx);
     const visitante = getNombreEquipo(equipos, p.grupo, p.visitanteIdx);
@@ -316,7 +411,7 @@ function renderizarResultados(data) {
 
     return `
       <div class="partido-card reveal">
-        <span class="partido-grupo-badge">Grupo ${p.grupo}</span>
+        <span class="partido-grupo-badge">${escHtml(grupoLabel(p.grupo))}${p.pista ? ` · ${escHtml(p.pista)}` : ''}</span>
         <span class="partido-equipo local ${localWin ? 'text-gold' : ''}">
           ${logoHtml(getLogoEquipo(logos, p.grupo, p.localIdx), local, 'local')}
         </span>
@@ -331,6 +426,13 @@ function renderizarResultados(data) {
   setupReveal(container);
 }
 
+/** Devuelve una función que traduce la clave de un grupo a su etiqueta visible. */
+function grupoLabelPorClave(categoriaId) {
+  const grupos = GRUPOS_CATEGORIA[categoriaId] ?? [];
+  const mapa = Object.fromEntries(grupos.map(g => [g.key, g.nombre]));
+  return (key) => mapa[key] ?? key;
+}
+
 /* ───────────────────────────────────────────────
    7. RENDERIZADO: CLASIFICACIÓN
 ─────────────────────────────────────────────── */
@@ -341,15 +443,16 @@ function renderizarClasificacion(data) {
 
   section.classList.remove('hidden');
 
-  const logos = data.logos || {};
-  const grupos = ['A', 'B'];
-  container.innerHTML = grupos.map(grupo => {
+  const logos  = data.logos || {};
+  const grupos = GRUPOS_CATEGORIA[categoriaActual] ?? [];
+
+  container.innerHTML = grupos.map(({ key: grupo, nombre }) => {
     const tabla = calcularClasificacion(data.equipos, data.partidos, grupo);
     return `
       <div class="clasificacion-grupo reveal">
-        <h3 class="grupo-titulo">Grupo ${grupo}</h3>
+        <h3 class="grupo-titulo">${escHtml(nombre)}</h3>
         <div class="tabla-wrapper">
-          <table class="tabla-clasificacion" aria-label="Clasificación Grupo ${grupo}">
+          <table class="tabla-clasificacion" aria-label="Clasificación ${escHtml(nombre)}">
             <thead>
               <tr>
                 <th>Equipo</th>
@@ -364,7 +467,7 @@ function renderizarClasificacion(data) {
               </tr>
             </thead>
             <tbody>
-              ${tabla.map((equipo, pos) => {
+              ${tabla.map((equipo) => {
                 const logoUrl = getLogoEquipo(logos, grupo, equipo.idx);
                 const inicial = escHtml((equipo.nombre || '?')[0].toUpperCase());
                 const fallback = `this.outerHTML='<span class=\\'eq-logo eq-logo-inicial\\' aria-hidden=\\'true\\'>${inicial}</span>'`;
@@ -392,7 +495,6 @@ function renderizarClasificacion(data) {
             </tbody>
           </table>
         </div>
-        <p class="tabla-leyenda">● Clasificados para semifinales</p>
       </div>`;
   }).join('');
 
@@ -435,12 +537,13 @@ function renderizarProximos(data) {
     const visitante = getNombreEquipo(equipos, p.grupo, p.visitanteIdx);
     const horaTexto = p.hora ?? '--:--';
     const diaTexto  = p.dia  ? DIAS[p.dia] : 'Por confirmar';
+    const pistaTexto = p.pista ? ` · ${p.pista}` : '';
 
     return `
       <div class="proximo-card reveal">
         <div class="proximo-hora-bloque">
           <span class="proximo-hora">${escHtml(horaTexto)}</span>
-          <span class="proximo-dia">${escHtml(diaTexto)}</span>
+          <span class="proximo-dia">${escHtml(diaTexto)}${escHtml(pistaTexto)}</span>
         </div>
         <div class="proximo-partido-grid">
           <span class="partido-equipo local">
@@ -467,56 +570,19 @@ function renderizarEliminatoria(data) {
   if (!container) return;
 
   section.classList.remove('hidden');
-  const { equipos, partidos, eliminatoria } = data;
+  const { eliminatoria = {} } = data;
+  const rondas = ELIMINATORIA_CATEGORIA[categoriaActual] ?? [];
 
-  // Comprobar si todos los partidos de grupo están jugados
-  const totalGrupo      = (partidos ?? []).length;
-  const jugadosGrupo    = (partidos ?? []).filter(p => p.jugado).length;
-  const gruposTerminados = totalGrupo > 0 && jugadosGrupo === totalGrupo;
+  const cardsHTML = rondas.map(({ key, label, esFinal }) => {
+    const datos = eliminatoria[key] ?? {};
+    return renderBracketCard(label, datos.equipoLocal, datos.equipoVisitante, datos, esFinal ? '🏆' : '🥅', !!esFinal);
+  }).join('');
 
-  // Calcular clasificaciones para derivar cruces SF
-  const clasificA = calcularClasificacion(equipos, partidos, 'A');
-  const clasificB = calcularClasificacion(equipos, partidos, 'B');
-
-  // SF1: 1º Grupo A vs 2º Grupo B
-  // SF2: 1º Grupo B vs 2º Grupo A
-  // Usar override manual (equipoLocal/equipoVisitante en Firebase) si están definidos
-  const sf1LocalAuto      = gruposTerminados ? (clasificA[0]?.nombre ?? null) : null;
-  const sf1VisitanteAuto  = gruposTerminados ? (clasificB[1]?.nombre ?? null) : null;
-  const sf2LocalAuto      = gruposTerminados ? (clasificB[0]?.nombre ?? null) : null;
-  const sf2VisitanteAuto  = gruposTerminados ? (clasificA[1]?.nombre ?? null) : null;
-
-  const sf1 = eliminatoria?.sf1   ?? {};
-  const sf2 = eliminatoria?.sf2   ?? {};
-  const fin = eliminatoria?.final ?? {};
-
-  const sf1Local     = sf1.equipoLocal      ?? sf1LocalAuto     ?? null;
-  const sf1Visitante = sf1.equipoVisitante  ?? sf1VisitanteAuto ?? null;
-  const sf2Local     = sf2.equipoLocal      ?? sf2LocalAuto     ?? null;
-  const sf2Visitante = sf2.equipoVisitante  ?? sf2VisitanteAuto ?? null;
-
-  // Ganadores de SF para determinar equipos de la final
-  const sf1Ganador = sf1.jugado ? getGanador(sf1Local, sf1Visitante, sf1.golLocal, sf1.golVisitante) : null;
-  const sf2Ganador = sf2.jugado ? getGanador(sf2Local, sf2Visitante, sf2.golLocal, sf2.golVisitante) : null;
-
-  const finLocal     = fin.equipoLocal     ?? sf1Ganador ?? null;
-  const finVisitante = fin.equipoVisitante ?? sf2Ganador ?? null;
-  const campeon      = fin.jugado ? getGanador(finLocal, finVisitante, fin.golLocal, fin.golVisitante) : null;
-
-  const aviso = !gruposTerminados ? (() => {
-    const porJugar = totalGrupo - jugadosGrupo;
-    return `<p class="pendiente-grupos-msg reveal">
-      Los cruces de eliminatoria se definirán cuando terminen los ${porJugar}
-      partido${porJugar !== 1 ? 's' : ''} de grupo pendiente${porJugar !== 1 ? 's' : ''}.
-    </p>`;
-  })() : '';
-
-  const gridHTML = `
-    <div class="eliminatoria-grid">
-      ${renderBracketCard('SEMIFINAL 1', sf1Local, sf1Visitante, sf1, '🥅')}
-      ${renderBracketCard('SEMIFINAL 2', sf2Local, sf2Visitante, sf2, '🥅')}
-      ${renderBracketCard('🏆 FINAL',    finLocal,  finVisitante, fin, '🏆', true)}
-    </div>`;
+  const finalRonda = rondas.find(r => r.esFinal);
+  const finalDatos = finalRonda ? (eliminatoria[finalRonda.key] ?? {}) : {};
+  const campeon = finalDatos.jugado
+    ? getGanador(finalDatos.equipoLocal, finalDatos.equipoVisitante, finalDatos.golLocal, finalDatos.golVisitante)
+    : null;
 
   const campeonHTML = campeon ? `
     <div class="campeon-card reveal">
@@ -525,7 +591,7 @@ function renderizarEliminatoria(data) {
       <p class="campeon-nombre">${escHtml(campeon)}</p>
     </div>` : '';
 
-  container.innerHTML = aviso + gridHTML + campeonHTML;
+  container.innerHTML = `<div class="eliminatoria-grid">${cardsHTML}</div>${campeonHTML}`;
   setupReveal(container);
 }
 
@@ -545,12 +611,13 @@ function renderBracketCard(label, localNombre, visitanteNombre, datos, icono, es
   const localGana    = jugado && gl !== null && Number(gl) > Number(gv);
   const visitanteGana= jugado && gv !== null && Number(gv) > Number(gl);
 
-  const horaTexto  = datos?.hora ? `${DIAS[datos.dia] ?? ''} · ${datos.hora}` : '';
+  const pistaTexto = datos?.pista ? ` · ${datos.pista}` : '';
+  const horaTexto  = datos?.hora ? `${DIAS[datos.dia] ?? ''} · ${datos.hora}${pistaTexto}` : '';
 
   return `
     <div class="bracket-match-card ${esFinal ? 'final-card' : ''} reveal">
       <div class="bracket-ronda-label ${esFinal ? 'final-label' : ''}">
-        ${icono} ${label}
+        ${icono} ${escHtml(label)}
         ${horaTexto ? `<span class="bracket-horario">${escHtml(horaTexto)}</span>` : ''}
       </div>
       <div class="bracket-equipos">

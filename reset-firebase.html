@@ -17,9 +17,10 @@
 </head>
 <body>
   <h1>Reset Firebase — CupFutsal 2026</h1>
-  <div class="warn">⚠️ ATENCIÓN: Esto borrará TODOS los datos del torneo en Firebase y los dejará en estado inicial. No se puede deshacer.</div>
-  <p>Categorías que se crearán de cero: <strong>Benjamín, Alevín, Infantil, Cadete, Juvenil/Sénior</strong></p>
-  <p>Cada categoría tendrá Equipo 1–10, sin resultados ni partidos jugados.</p>
+  <div class="warn">⚠️ ATENCIÓN: Esto borrará TODOS los datos del torneo en Firebase y los dejará en estado inicial con la nueva estructura. No se puede deshacer.</div>
+  <p>Categorías que se crearán de cero: <strong>Infantil, Juvenil/Sénior</strong></p>
+  <p>Infantil: grupo único con FUT TEAM, Filósofos, Cojos United y Mástercher Piti.<br>
+     Juvenil/Sénior: 3 grupos con los equipos y horarios reales del torneo.</p>
   <button class="btn" id="btnReset" onclick="resetear()">Ejecutar Reset</button>
   <div id="log"></div>
 
@@ -40,37 +41,127 @@
     const app = initializeApp(firebaseConfig);
     const db  = getFirestore(app);
 
+    // Todas las categorías que hayan existido en versiones anteriores de la app
     const CATEGORIAS_ANTIGUAS = ['prebenjamin', 'benjamin', 'alevin', 'infantil', 'cadete', 'juvenil', 'senior', 'juvenilsenior'];
-    const CATEGORIAS_NUEVAS   = ['benjamin', 'alevin', 'infantil', 'cadete', 'juvenilsenior'];
+    const CATEGORIAS_NUEVAS   = ['infantil', 'juvenilsenior'];
 
-    function generarRoundRobin(grupo) {
-      const partidos = [];
-      for (let i = 0; i < 5; i++) {
-        for (let j = i + 1; j < 5; j++) {
-          partidos.push({
-            id: `${grupo}_${i}_${j}`, grupo,
-            localIdx: i, visitanteIdx: j,
-            golLocal: null, golVisitante: null,
-            jugado: false, dia: null, hora: null
-          });
-        }
-      }
-      return partidos;
+    let contadorPartido = 0;
+
+    function crearPartido(grupo, localIdx, visitanteIdx, dia, hora, pista) {
+      contadorPartido++;
+      return {
+        id: `${grupo}_${contadorPartido}`,
+        grupo, localIdx, visitanteIdx,
+        golLocal: null, golVisitante: null,
+        jugado: false,
+        dia, hora, pista
+      };
     }
 
-    function datosIniciales() {
+    function crearSlotEliminatoria(dia, hora, pista) {
       return {
-        equipos: {
-          grupoA: ['Equipo 1','Equipo 2','Equipo 3','Equipo 4','Equipo 5'],
-          grupoB: ['Equipo 6','Equipo 7','Equipo 8','Equipo 9','Equipo 10']
-        },
-        partidos: [...generarRoundRobin('A'), ...generarRoundRobin('B')],
-        eliminatoria: {
-          sf1:   { equipoLocal: null, equipoVisitante: null, golLocal: null, golVisitante: null, jugado: false, dia: null, hora: null },
-          sf2:   { equipoLocal: null, equipoVisitante: null, golLocal: null, golVisitante: null, jugado: false, dia: null, hora: null },
-          final: { equipoLocal: null, equipoVisitante: null, golLocal: null, golVisitante: null, jugado: false, dia: null, hora: null }
-        }
+        equipoLocal: null, equipoVisitante: null,
+        golLocal: null, golVisitante: null,
+        jugado: false,
+        dia: dia ?? null, hora: hora ?? null, pista: pista ?? null
       };
+    }
+
+    function datosInicialesInfantil() {
+      contadorPartido = 0;
+      // idx: 0 FUT TEAM · 1 Filósofos · 2 Cojos United · 3 Mástercher Piti
+      const equipos = { A: ['FUT TEAM', 'Filósofos', 'Cojos United', 'Mástercher Piti'] };
+      const logos = {
+        A_0: 'logosequipos/futteam.jpg',
+        A_1: 'logosequipos/filosofos.jpg',
+        A_3: 'logosequipos/manchesterpiti.jpg'
+      };
+      const partidos = [
+        crearPartido('A', 0, 1, 'viernes', '18:40', 'Pista 1'),
+        crearPartido('A', 0, 2, 'viernes', '20:00', 'Pista 1'),
+        crearPartido('A', 1, 2, 'viernes', '21:20', 'Pista 1'),
+        crearPartido('A', 3, 0, 'sabado',  '13:00', 'Pista 1'),
+        crearPartido('A', 3, 1, 'sabado',  '15:00', 'Pista 1'),
+        crearPartido('A', 3, 2, 'sabado',  '16:20', 'Pista 1')
+      ];
+      const eliminatoria = {
+        cuartos1:  crearSlotEliminatoria('sabado', '17:00', 'Pista 1'),
+        cuartos2:  crearSlotEliminatoria('sabado', '17:40', 'Pista 1'),
+        semifinal: crearSlotEliminatoria('sabado', '18:20', 'Pista 1'),
+        final:     crearSlotEliminatoria('sabado', '20:00', 'Pista 1')
+      };
+      return { equipos, logos, partidos, eliminatoria };
+    }
+
+    function datosInicialesJuvenilSenior() {
+      contadorPartido = 0;
+      // Grupo 1 — idx: 0 Bar Micaffe · 1 Rocky FC · 2 Miguelín Pipas · 3 Brigavins · 4 Atlas
+      // Grupo 2 — idx: 0 Pub Bana 2000 · 1 NoPartyBoys · 2 Insolens · 3 Joga Bonito · 4 Inter Junior
+      // Grupo 3 — idx: 0 Racing de Albacete · 1 Real Suciedad FC · 2 La Cantera FC · 3 Masturbinho y sus Apóstoles
+      const equipos = {
+        G1: ['Bar Micaffe', 'Rocky FC', 'Miguelín Pipas', 'Brigavins', 'Atlas'],
+        G2: ['Pub Bana 2000', 'NoPartyBoys', 'Insolens', 'Joga Bonito', 'Inter Junior'],
+        G3: ['Racing de Albacete', 'Real Suciedad FC', 'La Cantera FC', 'Masturbinho y sus Apóstoles']
+      };
+      const logos = {
+        G1_0: 'logosequipos/miccafe.png',
+        G1_1: 'logosequipos/rockyfc.jpg',
+        G1_2: 'logosequipos/miguelinpipas.jpg',
+        G1_4: 'logosequipos/atlas.jpg',
+        G2_0: 'logosequipos/pubbana.jpg',
+        G2_1: 'logosequipos/nopartyboys.jpg',
+        G2_2: 'logosequipos/INSOLENS.jpg',
+        G2_4: 'logosequipos/interjunior.jpg',
+        G3_2: 'logosequipos/lacantera.jpg',
+        G3_3: 'logosequipos/masturbinhoysusdiscipulos.jpg'
+      };
+
+      const partidos = [
+        crearPartido('G3', 0, 1, 'viernes', '18:00', 'Pista 1'),
+        crearPartido('G3', 2, 3, 'viernes', '18:00', 'Pista 2'),
+        crearPartido('G3', 0, 2, 'viernes', '19:20', 'Pista 1'),
+        crearPartido('G3', 1, 3, 'viernes', '19:20', 'Pista 2'),
+        crearPartido('G3', 0, 3, 'viernes', '20:40', 'Pista 1'),
+        crearPartido('G3', 1, 2, 'viernes', '20:40', 'Pista 2'),
+
+        crearPartido('G1', 1, 2, 'viernes', '18:40', 'Pista 2'),
+        crearPartido('G1', 4, 3, 'viernes', '20:00', 'Pista 2'),
+        crearPartido('G1', 0, 1, 'viernes', '21:20', 'Pista 2'),
+
+        crearPartido('G2', 0, 1, 'viernes', '22:00', 'Pista 1'),
+        crearPartido('G2', 2, 3, 'viernes', '22:00', 'Pista 2'),
+        crearPartido('G1', 0, 3, 'viernes', '22:40', 'Pista 1'),
+        crearPartido('G1', 2, 4, 'viernes', '22:40', 'Pista 2'),
+        crearPartido('G2', 0, 2, 'viernes', '23:20', 'Pista 1'),
+        crearPartido('G2', 3, 4, 'viernes', '23:20', 'Pista 2'),
+        crearPartido('G1', 0, 2, 'sabado',  '00:00', 'Pista 1'),
+        crearPartido('G1', 1, 4, 'sabado',  '00:00', 'Pista 2'),
+        crearPartido('G2', 0, 3, 'sabado',  '00:40', 'Pista 1'),
+        crearPartido('G2', 1, 4, 'sabado',  '00:40', 'Pista 2'),
+        crearPartido('G1', 0, 4, 'sabado',  '01:20', 'Pista 1'),
+        crearPartido('G1', 2, 3, 'sabado',  '01:20', 'Pista 2'),
+        crearPartido('G2', 0, 4, 'sabado',  '02:00', 'Pista 1'),
+        crearPartido('G2', 1, 2, 'sabado',  '02:00', 'Pista 2'),
+        crearPartido('G1', 1, 3, 'sabado',  '02:40', 'Pista 1'),
+        crearPartido('G2', 1, 3, 'sabado',  '03:20', 'Pista 1'),
+        crearPartido('G2', 2, 4, 'sabado',  '03:20', 'Pista 2')
+      ];
+
+      const eliminatoria = {
+        cuartos1:     crearSlotEliminatoria('sabado', '17:00', 'Pista 1'),
+        cuartos2:     crearSlotEliminatoria('sabado', '17:40', 'Pista 1'),
+        semifinalB:   crearSlotEliminatoria('sabado', '19:10', 'Pista 1'),
+        tercerpuesto: crearSlotEliminatoria('sabado', '20:40', 'Pista 1'),
+        final:        crearSlotEliminatoria('sabado', '21:40', 'Pista 1')
+      };
+
+      return { equipos, logos, partidos, eliminatoria };
+    }
+
+    function datosIniciales(categoriaId) {
+      return categoriaId === 'infantil'
+        ? datosInicialesInfantil()
+        : datosInicialesJuvenilSenior();
     }
 
     function log(msg, tipo = '') {
@@ -85,7 +176,7 @@
 
       log('Iniciando reset…', 'info');
 
-      // 1. Borrar categorías antiguas
+      // 1. Borrar todas las categorías (antiguas y actuales, para partir de cero)
       log('\n── Borrando datos existentes ──', 'info');
       for (const cat of CATEGORIAS_ANTIGUAS) {
         try {
@@ -102,12 +193,12 @@
         }
       }
 
-      // 2. Crear categorías nuevas con datos iniciales
+      // 2. Crear las 2 categorías nuevas con los datos reales del torneo
       log('\n── Creando categorías nuevas ──', 'info');
       for (const cat of CATEGORIAS_NUEVAS) {
         try {
           const ref = doc(db, 'torneos', 'caspe2026', 'categorias', cat);
-          await setDoc(ref, datosIniciales());
+          await setDoc(ref, datosIniciales(cat));
           log(`  ✓ Creado: ${cat}`, 'ok');
         } catch (e) {
           log(`  ✗ Error creando ${cat}: ${e.message}`, 'err');

@@ -75,10 +75,7 @@
   ═══════════════════════════════════════════════ -->
   <nav class="cat-nav" role="navigation" aria-label="Categorías del torneo">
     <div class="cat-tabs" role="tablist">
-      <button class="cat-tab active" role="tab" data-cat="benjamin" aria-selected="true">Benjamín</button>
-      <button class="cat-tab" role="tab" data-cat="alevin" aria-selected="false">Alevín</button>
-      <button class="cat-tab" role="tab" data-cat="infantil" aria-selected="false">Infantil</button>
-      <button class="cat-tab" role="tab" data-cat="cadete" aria-selected="false">Cadete</button>
+      <button class="cat-tab active" role="tab" data-cat="infantil" aria-selected="true">Infantil</button>
       <button class="cat-tab" role="tab" data-cat="juvenilsenior" aria-selected="false">Juvenil/Sénior</button>
     </div>
   </nav>
@@ -197,10 +194,7 @@
       <div class="admin-cat-selector">
         <label for="admin-cat-select" class="admin-label">Categoría activa:</label>
         <select id="admin-cat-select" class="admin-select">
-          <option value="benjamin">Benjamín</option>
-          <option value="alevin">Alevín</option>
           <option value="infantil">Infantil</option>
-          <option value="cadete">Cadete</option>
           <option value="juvenilsenior">Juvenil/Sénior</option>
         </select>
       </div>
@@ -236,7 +230,7 @@
         <!-- Pestaña: PARTIDOS DE GRUPO -->
         <div id="admin-tab-partidos" class="admin-tab-content hidden">
           <div class="admin-save-bar">
-            <p class="admin-hint">Introduce los resultados y horarios de los partidos de grupo.</p>
+            <p class="admin-hint">Introduce los resultados, horarios y pista de los partidos de grupo.</p>
           </div>
           <div id="admin-partidos-form">
             <!-- JS renderiza aquí los partidos de grupo A y B -->
@@ -247,7 +241,7 @@
         <!-- Pestaña: ELIMINATORIA -->
         <div id="admin-tab-eliminatoria" class="admin-tab-content hidden">
           <div class="admin-save-bar">
-            <p class="admin-hint">Los cruces de semifinales se calculan automáticamente al terminar los grupos. Puedes forzar los nombres de equipos manualmente si es necesario.</p>
+            <p class="admin-hint">Introduce manualmente los equipos de cada ronda de la eliminatoria a medida que se van definiendo.</p>
           </div>
           <div id="admin-eliminatoria-form">
             <!-- JS renderiza aquí las 3 rondas: SF1, SF2, Final -->
