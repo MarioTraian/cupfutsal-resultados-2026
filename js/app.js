@@ -484,7 +484,8 @@ function renderizarHorarios(data) {
     return (a.hora ?? '').localeCompare(b.hora ?? '');
   });
 
-  const grupoLabel = grupoLabelPorClave(categoriaActual);
+  const grupoLabel   = grupoLabelPorClave(categoriaActual);
+  const mostrarGrupo = (GRUPOS_CATEGORIA[categoriaActual] ?? []).length > 1;
 
   let diaAnterior;
   const filas = todos.map(p => {
@@ -501,14 +502,15 @@ function renderizarHorarios(data) {
       cabeceraDia = `<h3 class="horario-dia-titulo">${escHtml(p.dia ? DIAS[p.dia] : 'Día por confirmar')}</h3>`;
     }
 
-    const badge = `${escHtml(grupoLabel(p.grupo))}${p.pista ? ` · ${escHtml(p.pista)}` : ''}`;
+    const metaPartes = [p.pista, mostrarGrupo ? grupoLabel(p.grupo) : null].filter(Boolean);
+    const metaTexto  = metaPartes.length ? metaPartes.join(' · ') : '—';
 
     return `
       ${cabeceraDia}
       <div class="proximo-card horario-card reveal">
         <div class="proximo-hora-bloque">
           <span class="proximo-hora">${escHtml(p.hora ?? '--:--')}</span>
-          <span class="proximo-dia">${p.pista ? escHtml(p.pista) : '—'}</span>
+          <span class="proximo-dia">${escHtml(metaTexto)}</span>
         </div>
         <div class="proximo-partido-grid">
           <span class="partido-equipo local ${localWin ? 'text-gold' : ''}">
@@ -521,7 +523,6 @@ function renderizarHorarios(data) {
             ${logoHtml(getLogoEquipo(logos, p.grupo, p.visitanteIdx), visitante, 'visitante')}
           </span>
         </div>
-        <span class="partido-grupo-badge">${badge}</span>
       </div>`;
   }).join('');
 

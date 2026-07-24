@@ -543,18 +543,6 @@ input, select, textarea {
   letter-spacing: 0.1em;
 }
 
-/* Badge de grupo (A/B) */
-.partido-grupo-badge {
-  position: absolute;
-  top: 0.35rem;
-  right: 0.5rem;
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-  text-transform: uppercase;
-}
-
 /* Mensaje vacío cuando no hay datos */
 .empty-msg {
   background: var(--bg-card);
@@ -597,18 +585,6 @@ input, select, textarea {
   margin-top: 0;
 }
 
-/* Deja hueco a la derecha para el badge de grupo/pista */
-.horario-card {
-  padding-right: 5.5rem;
-}
-
-.horario-card .partido-grupo-badge {
-  top: 50%;
-  right: var(--space-md);
-  transform: translateY(-50%);
-  text-align: right;
-}
-
 .proximo-card:hover {
   transform: translateY(-1px);
   border-color: rgba(245,185,66,0.3);
@@ -618,11 +594,12 @@ input, select, textarea {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 56px;
+  min-width: 66px;
+  max-width: 92px;
   text-align: center;
   flex-shrink: 0;
   border-right: 1px solid var(--border-faint);
-  padding-right: var(--space-md);
+  padding-right: var(--space-sm);
 }
 
 .proximo-hora {

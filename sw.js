@@ -1,4 +1,4 @@
-const CACHE = 'cupfutsal-2026-v5';
+const CACHE = 'cupfutsal-2026-v6';
 
 // Solo se cachean assets estáticos — NUNCA index.html ni sw.js
 const PRECACHE = [
@@ -48,16 +48,16 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // CSS / JS / assets → caché primero (rápido), red si no está
+  // CSS / JS → red primero (para no servir código desactualizado tras un
+  // despliegue), caché como respaldo si no hay conexión
   event.respondWith(
-    caches.match(request).then(cached => {
-      if (cached) return cached;
-      return fetch(request).then(response => {
+    fetch(request)
+      .then(response => {
         if (!response.ok) return response;
         const clone = response.clone();
         caches.open(CACHE).then(c => c.put(request, clone));
         return response;
-      });
-    })
+      })
+      .catch(() => caches.match(request))
   );
 });
